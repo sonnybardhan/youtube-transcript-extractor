@@ -528,7 +528,7 @@ function makeCollapsibleSections(html) {
   let currentContent = [];
 
   // Sections that should NOT be collapsible (parent sections or key info sections)
-  const nonCollapsibleSections = ['tldr', 'metadata', 'description', 'transcript', 'summary'];
+  const nonCollapsibleSections = ['tldr', 'keyinsights', 'actionitems', 'metadata', 'description', 'transcript', 'summary'];
 
   function hasContent(contentArray) {
     const combined = contentArray.join('').trim();
