@@ -1,0 +1,8 @@
+{
+  "name": "youtube-extractor",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "yt-extract": "./youtube-extractor.js"
+  }
+}
