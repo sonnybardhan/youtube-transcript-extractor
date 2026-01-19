@@ -9,7 +9,7 @@ Node.js web app + CLI for extracting YouTube transcripts via `yt-dlp`. Optional 
 ## Requirements
 
 - Node.js (ES modules), `yt-dlp` in PATH
-- Optional: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` in `.env`
+- Optional: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY` in `.env`
 
 ## Commands
 
@@ -52,4 +52,10 @@ temp/               # Output files (.md, .info.json, .srt)
 
 ## LLM Models
 
-OpenAI: gpt-4o-mini, gpt-4o | Anthropic: claude-sonnet-4, claude-haiku-4
+- **OpenAI**: gpt-4o-mini, gpt-4o
+- **Anthropic**: claude-sonnet-4, claude-haiku-4
+- **OpenRouter**: claude-sonnet-4.5, claude-opus-4.5, claude-haiku-4.5, gpt-5.2, gemini-3-pro, deepseek-v3.2
+
+## UI State
+
+- `currentModel` tracks which LLM generated the current summary (displayed next to reading time)

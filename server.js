@@ -40,6 +40,20 @@ if (existsSync(envPath)) {
 app.use(express.json());
 app.use(express.static(join(__dirname, "public")));
 
+// Helper to get API key for a given provider
+function getApiKeyForProvider(provider) {
+  switch (provider) {
+    case "openai":
+      return process.env.OPENAI_API_KEY;
+    case "anthropic":
+      return process.env.ANTHROPIC_API_KEY;
+    case "openrouter":
+      return process.env.OPENROUTER_API_KEY;
+    default:
+      return null;
+  }
+}
+
 // Extract transcript(s) from URL(s) - full extraction
 app.post("/api/extract", async (req, res) => {
   const { urls, llm, customPrompt, compressionLevel } = req.body;
@@ -51,10 +65,7 @@ app.post("/api/extract", async (req, res) => {
   // Build LLM config if provider specified
   let llmConfig = null;
   if (llm?.provider && llm?.model) {
-    const apiKey =
-      llm.provider === "openai"
-        ? process.env.OPENAI_API_KEY
-        : process.env.ANTHROPIC_API_KEY;
+    const apiKey = getApiKeyForProvider(llm.provider);
 
     if (apiKey) {
       llmConfig = {
@@ -126,10 +137,7 @@ app.post("/api/extract/process", async (req, res) => {
   // Build LLM config
   let llmConfig = null;
   if (llm?.provider && llm?.model) {
-    const apiKey =
-      llm.provider === "openai"
-        ? process.env.OPENAI_API_KEY
-        : process.env.ANTHROPIC_API_KEY;
+    const apiKey = getApiKeyForProvider(llm.provider);
 
     if (apiKey) {
       llmConfig = {
@@ -198,10 +206,7 @@ app.post("/api/reprocess", async (req, res) => {
   // Build LLM config
   let llmConfig = null;
   if (llm?.provider && llm?.model) {
-    const apiKey =
-      llm.provider === "openai"
-        ? process.env.OPENAI_API_KEY
-        : process.env.ANTHROPIC_API_KEY;
+    const apiKey = getApiKeyForProvider(llm.provider);
 
     if (apiKey) {
       llmConfig = {
@@ -346,6 +351,7 @@ app.get("/api/config", (_req, res) => {
   res.json({
     hasOpenAI: !!process.env.OPENAI_API_KEY,
     hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
+    hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
   });
 });
 

@@ -9,19 +9,28 @@ const LLM_MODELS = {
   anthropic: [
     { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
     { value: 'claude-haiku-4-20250514', label: 'Claude Haiku 4' }
+  ],
+  openrouter: [
+    { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
+    { value: 'anthropic/claude-opus-4.5', label: 'Claude Opus 4.5' },
+    { value: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5' },
+    { value: 'openai/gpt-5.2', label: 'GPT-5.2' },
+    { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro' },
+    { value: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2' }
   ]
 };
 
 // ========================================
 // State
 // ========================================
-let apiConfig = { hasOpenAI: false, hasAnthropic: false };
+let apiConfig = { hasOpenAI: false, hasAnthropic: false, hasOpenRouter: false };
 let customPrompt = null;
 let defaultPrompt = '';
 let currentMarkdown = '';
 let originalTranscript = '';
 let currentMetadata = null;
 let currentFilename = null;
+let currentModel = null;
 let compressionLevel = 50;
 
 // ========================================
@@ -65,6 +74,7 @@ const elements = {
   // Loading & Status
   loadingOverlay: document.getElementById('loading-overlay'),
   resultsLoading: document.getElementById('results-loading'),
+  resultsMain: document.getElementById('results-main'),
   apiStatus: document.getElementById('api-status'),
 
   // Modal
@@ -172,10 +182,14 @@ async function loadConfig() {
         opt.disabled = true;
         opt.textContent += ' (no key)';
       }
+      if (opt.value === 'openrouter' && !apiConfig.hasOpenRouter) {
+        opt.disabled = true;
+        opt.textContent += ' (no key)';
+      }
     });
 
     // Update status
-    const hasAnyKey = apiConfig.hasOpenAI || apiConfig.hasAnthropic;
+    const hasAnyKey = apiConfig.hasOpenAI || apiConfig.hasAnthropic || apiConfig.hasOpenRouter;
     elements.apiStatus.textContent = hasAnyKey ? 'Operational' : 'No API Keys';
     elements.apiStatus.className = hasAnyKey ? 'status-ok' : 'status-error';
   } catch (err) {
@@ -251,6 +265,7 @@ async function loadHistoryItem(filename) {
     const data = await res.json();
     currentMarkdown = data.content;
     currentFilename = filename;
+    currentModel = null; // Model info not available for historical items
 
     // Extract title from markdown
     const titleMatch = data.content.match(/^#\s+(.+)$/m);
@@ -413,10 +428,14 @@ async function handleExtract() {
 
         currentMarkdown = markdown;
         currentFilename = filename;
+        // Store the model label for display
+        const modelInfo = LLM_MODELS[provider]?.find(m => m.value === model);
+        currentModel = modelInfo?.label || model;
         renderMarkdown(markdown);
         await loadHistory();
       } else {
         // All LLM processing failed - show basic content
+        currentModel = null;
         renderBasicContent(successfulBasic.map(r => r.data));
       }
 
@@ -426,11 +445,13 @@ async function handleExtract() {
       renderBasicContent(successfulBasic.map(r => r.data));
       currentMarkdown = '';
       currentFilename = null;
+      currentModel = null;
     }
   } catch (err) {
     showToast(`Request failed: ${err.message}`);
   } finally {
     setLoading(false);
+    setLoading(false, true); // Also ensure results-only loading is hidden
   }
 }
 
@@ -471,6 +492,9 @@ async function handleRerunLLM() {
 
     currentMarkdown = data.markdown;
     currentFilename = data.filename;
+    // Store the model label for display
+    const modelInfo = LLM_MODELS[provider]?.find(m => m.value === model);
+    currentModel = modelInfo?.label || model;
     showResultsView(data.markdown, data.title);
     await loadHistory();
     showToast('Successfully reprocessed with LLM', 'success');
@@ -713,8 +737,23 @@ function renderMarkdown(content, noTranscriptWarning = null) {
   content = content.replace(/^## (?!Transcript|Summary|Key Insights|Action Items)[^\n]+\n+(?=## |$)/gm, '');
   content = content.replace(/^(## (?!Transcript|Summary|Key Insights|Action Items)[^\n]+)\n+---\n*(?=## |$)/gm, '');
 
+  // Calculate reading time based on word count (average 200 words per minute)
+  const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+  const readingMinutes = Math.max(1, Math.ceil(wordCount / 200));
+  const readingTimeText = readingMinutes === 1 ? '1 min read' : `${readingMinutes} min read`;
+
+  // Build meta line with reading time and optional model info
+  const metaParts = [readingTimeText];
+  if (currentModel) {
+    metaParts.push(`summarized by ${currentModel}`);
+  }
+  const metaText = metaParts.join(' · ');
+
   // Parse markdown
   let html = marked.parse(content);
+
+  // Insert reading time and model info after the h1 title
+  html = html.replace(/(<\/h1>)/, `$1<p class="reading-time">${metaText}</p>`);
 
   // Make all links open in new tabs
   html = html.replace(/<a\s+href=/g, '<a target="_blank" rel="noopener noreferrer" href=');
@@ -967,6 +1006,10 @@ function setLoading(isLoading, resultsOnly = false) {
   if (resultsOnly) {
     // Only show loading in the results main area (keeps transcript visible)
     elements.resultsLoading.classList.toggle('hidden', !isLoading);
+    // Prevent scrolling while loading overlay is shown
+    if (elements.resultsMain) {
+      elements.resultsMain.style.overflow = isLoading ? 'hidden' : '';
+    }
   } else {
     // Full-page loading overlay
     elements.loadingOverlay.classList.toggle('hidden', !isLoading);
