@@ -30,6 +30,7 @@ open http://localhost:3000
 ```
 
 Features:
+
 - Paste one or multiple YouTube URLs (one per line)
 - Choose LLM provider (OpenAI or Anthropic) and model
 - Dark/Light mode toggle (persisted to localStorage)
@@ -81,6 +82,7 @@ Output is always saved to `temp/<video-title>.md`. If no output file argument is
 ```
 
 ### Core Module (`lib/extractor.js`)
+
 - `extract(url, llmConfig)` - Main extraction function
 - `extractVideoId(url)` - Parse YouTube URL/ID
 - `cleanSubtitleText(srt)` - Convert SRT to plain text
@@ -88,6 +90,7 @@ Output is always saved to `temp/<video-title>.md`. If no output file argument is
 - Supports both OpenAI and Anthropic LLMs
 
 ### API Endpoints (`server.js`)
+
 - `POST /api/extract` - Extract from URL(s) with optional LLM config and custom prompt
 - `GET /api/history` - List all extractions
 - `GET /api/history/:filename` - Get specific extraction
@@ -98,6 +101,7 @@ Output is always saved to `temp/<video-title>.md`. If no output file argument is
 - `DELETE /api/prompt` - Reset prompt to default
 
 ### Files in `temp/`
+
 - `<videoId>.info.json` - raw metadata from yt-dlp
 - `<videoId>.en.srt` - raw subtitles
 - `<video-title>.md` - final formatted output
@@ -106,6 +110,7 @@ Output is always saved to `temp/<video-title>.md`. If no output file argument is
 ## LLM Output Structure
 
 When LLM processing is enabled, the output includes:
+
 1. **TLDR** - 2-3 sentence summary
 2. **Key Insights** - 3-7 important ideas/findings
 3. **Action Items & Takeaways** - practical steps or things to remember
@@ -114,7 +119,7 @@ When LLM processing is enabled, the output includes:
 
 ## LLM Options
 
-| Provider | Models |
-|----------|--------|
-| OpenAI | gpt-4o-mini, gpt-4o |
+| Provider  | Models                                            |
+| --------- | ------------------------------------------------- |
+| OpenAI    | gpt-4o-mini, gpt-4o                               |
 | Anthropic | claude-sonnet-4-20250514, claude-haiku-4-20250514 |
