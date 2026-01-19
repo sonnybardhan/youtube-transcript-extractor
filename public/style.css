@@ -2,22 +2,39 @@
    CSS Variables & Theme
    ======================================== */
 :root {
-  --primary: #126c87;
-  --primary-hover: #1582a1;
-  --primary-dark: #0e556b;
-  --background-dark: #121212;
-  --surface-dark: #1E1E1E;
-  --surface-darker: #111617;
-  --border-dark: #383838;
-  --border-light: #2a2a2a;
-  --text-main: #E0E0E0;
-  --text-muted: #A0A0A0;
-  --text-dim: #6e7681;
-  --editor-bg: #0d1117;
-  --editor-border: #30363d;
-  --variable-cyan: #4dd0e1;
-  --success: #10b981;
-  --error: #ef4444;
+  /* Primary brand colors - used for buttons, links, accents */
+  --primary: #126c87;              /* Main brand color (teal) */
+  --primary-hover: #1582a1;        /* Hover state for primary elements */
+  --primary-dark: #0e556b;         /* Darker variant for active states */
+
+  /* Background colors - layered from darkest to lightest */
+  --background-dark: #121212;      /* App background */
+  --surface-dark: #1E1E1E;         /* Cards, panels, elevated surfaces */
+  --surface-darker: #111617;       /* Sidebar, deeper recessed areas */
+
+  /* Border colors */
+  --border-dark: #383838;          /* Primary borders, dividers */
+  --border-light: #2a2a2a;         /* Subtle borders, skeleton loaders */
+
+  /* Text colors - hierarchy from brightest to dimmest */
+  --text-main: #E0E0E0;            /* Primary text, body content */
+  --text-muted: #A0A0A0;           /* Secondary text, labels */
+  --text-dim: #6e7681;             /* Tertiary text, hints, timestamps */
+
+  /* Section headings - prominent color for h2/h3 in content */
+  --heading-color: #58a6c7;        /* Teal-tinted heading color */
+  --subheading-color: #7fbdd4;     /* Lighter teal for subheadings */
+
+  /* Editor/code styling */
+  --editor-bg: #0d1117;            /* Code editor background */
+  --editor-border: #30363d;        /* Code editor border */
+  --variable-cyan: #4dd0e1;        /* Syntax highlighting, variables */
+
+  /* Status colors */
+  --success: #10b981;              /* Success messages, confirmations */
+  --error: #ef4444;                /* Error messages, warnings */
+
+  /* Typography */
   --font-display: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
 }
@@ -976,20 +993,22 @@ body {
   line-height: 1.3;
 }
 
+/* Main section headings (TLDR, Key Insights, Summary, etc.) */
 .output-container h2 {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
-  color: #fff;
+  color: var(--heading-color);        /* Prominent teal color */
   margin-top: 32px;
   margin-bottom: 16px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border-dark);
 }
 
+/* Subsection headings within the summary (topic sections) */
 .output-container h3 {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
-  color: #f3f4f6;
+  color: var(--subheading-color);     /* Lighter teal for hierarchy */
   margin-top: 24px;
   margin-bottom: 12px;
 }
@@ -1115,7 +1134,8 @@ body {
   margin: 0;
   padding: 0;
   border: none;
-  font-size: 16px;
+  font-size: 18px;
+  color: var(--subheading-color);     /* Match subsection heading color */
 }
 
 .collapsible-section-header .collapse-icon {
@@ -1731,17 +1751,30 @@ body {
    Light Mode
    ======================================== */
 html.light {
+  /* Primary brand colors */
   --primary: #0d7ea8;
   --primary-hover: #0a6a8f;
   --primary-dark: #085c7a;
+
+  /* Background colors */
   --background-dark: #f5f5f5;
   --surface-dark: #ffffff;
   --surface-darker: #fafafa;
+
+  /* Border colors */
   --border-dark: #e0e0e0;
   --border-light: #eeeeee;
+
+  /* Text colors */
   --text-main: #1a1a1a;
   --text-muted: #666666;
   --text-dim: #999999;
+
+  /* Section headings - darker teal for light mode */
+  --heading-color: #0a6a8f;
+  --subheading-color: #0d7ea8;
+
+  /* Editor styling */
   --editor-bg: #fafafa;
   --editor-border: #e0e0e0;
   --variable-cyan: #0d7ea8;
