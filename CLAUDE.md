@@ -4,7 +4,7 @@ Guidance for Claude Code when working with this repository.
 
 ## Overview
 
-Node.js web app + CLI for extracting YouTube transcripts via `yt-dlp`. Optional LLM processing generates TLDR, insights, action items, and sectioned summaries.
+Node.js web app + CLI for extracting YouTube transcripts via `yt-dlp`. Optional LLM processing generates TLDR, insights, action items, and sectioned summaries. Features progressive loading - transcript displays immediately while LLM processes.
 
 ## Requirements
 
@@ -14,7 +14,7 @@ Node.js web app + CLI for extracting YouTube transcripts via `yt-dlp`. Optional 
 ## Commands
 
 ```bash
-npm install && npm start  # Web app at http://localhost:3000
+npm install && npm start  # Web app at http://localhost:3001
 node youtube-extractor.js <URL> [output.md]  # CLI
 ```
 
@@ -23,7 +23,7 @@ node youtube-extractor.js <URL> [output.md]  # CLI
 ```
 server.js           # Express API
 youtube-extractor.js # CLI tool
-lib/extractor.js    # Core logic (extract, extractBasic, reprocessWithLLM)
+lib/extractor.js    # Core logic (extract, extractBasic, processWithLLMAndFormat)
 public/             # Web UI (index.html, app.js, style.css)
 temp/               # Output files (.md, .info.json, .srt)
 ```
@@ -32,12 +32,14 @@ temp/               # Output files (.md, .info.json, .srt)
 
 - `extract(url, llmConfig)` - Full extraction with optional LLM
 - `extractBasic(url)` - Metadata + transcript only (no LLM)
+- `processWithLLMAndFormat(basicInfo, llmConfig)` - Process basic info with LLM
 - `reprocessWithLLM(transcript, title, llmConfig)` - Re-run LLM on existing content
-- `getPromptForCompression(level)` - Generate prompt based on detail level (0-100)
 
 ## API Endpoints
 
-- `POST /api/extract` - Extract with `{urls, llm, compressionLevel}`
+- `POST /api/extract` - Full extraction with `{urls, llm, compressionLevel}`
+- `POST /api/extract/basic` - Get transcript/metadata instantly `{url}`
+- `POST /api/extract/process` - Process with LLM `{basicInfo, llm, compressionLevel}`
 - `POST /api/reprocess` - Rerun LLM on file `{filename, llm, compressionLevel}`
 - `GET/DELETE /api/history/:filename` - Manage extractions
 - `GET/POST/DELETE /api/prompt` - Custom prompt management
@@ -46,7 +48,7 @@ temp/               # Output files (.md, .info.json, .srt)
 
 - **Sidebar**: LLM settings (provider, model, detail level), history list, theme toggle
 - **Main**: URL input, results with collapsible sections, rerun button
-- **Right Panel**: Tabbed transcript/metadata (stays visible during LLM loading)
+- **Right Panel**: Tabbed transcript/metadata (displays immediately via progressive loading)
 
 ## LLM Models
 

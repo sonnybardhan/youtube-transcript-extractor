@@ -5,6 +5,7 @@ A local web app and CLI tool that extracts YouTube video metadata and transcript
 ## Features
 
 - **Video Extraction** - metadata and English subtitles via yt-dlp
+- **Progressive Loading** - transcript displays immediately while LLM processes
 - **LLM Processing** - TLDR, Key Insights, Action Items, sectioned summaries
 - **Detail Level** - adjustable compression (0-100%) for LLM output
 - **Rerun LLM** - reprocess any extraction with different settings (creates new file)
@@ -21,14 +22,14 @@ A local web app and CLI tool that extracts YouTube video metadata and transcript
 ```bash
 npm install
 npm start
-# Open http://localhost:3000
+# Open http://localhost:3001
 ```
 
 ## Web UI
 
 - **Sidebar** - LLM settings (provider, model, detail level), history, theme toggle
 - **Main Area** - URL input, Extract button, rendered results
-- **Right Panel** - Original transcript and metadata tabs
+- **Right Panel** - Original transcript and metadata tabs (loads instantly)
 - **Edit Prompt** - customize LLM instructions (Cmd+Enter to save)
 
 ## CLI
@@ -42,7 +43,9 @@ OPENAI_API_KEY="sk-..." node youtube-extractor.js <URL>  # With LLM
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/extract` | Extract with optional LLM processing |
+| POST | `/api/extract` | Full extraction with optional LLM |
+| POST | `/api/extract/basic` | Get transcript/metadata instantly |
+| POST | `/api/extract/process` | Process basic info with LLM |
 | POST | `/api/reprocess` | Rerun LLM on existing file |
 | GET | `/api/history` | List extractions |
 | GET/DELETE | `/api/history/:filename` | Get/delete extraction |
