@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Transcript Extractor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>History</h2>
+      </div>
+      <div class="sidebar-content">
+        <div id="history-list" class="history-list">
+          <p class="empty-state">No extractions yet</p>
+        </div>
+      </div>
+      <div class="sidebar-footer">
+        <button id="prompt-editor-btn" class="prompt-editor-btn">Edit Prompt</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="main-content-inner">
+        <h1>YouTube Transcript Extractor</h1>
+
+        <div class="input-section">
+          <label for="urls">YouTube URL(s)</label>
+          <textarea
+            id="urls"
+            placeholder="Paste YouTube URL(s) here, one per line..."
+            rows="3"
+          ></textarea>
+
+          <div class="options-row">
+            <div class="llm-selector">
+              <label for="llm-provider">LLM Provider</label>
+              <select id="llm-provider">
+                <option value="">None (raw transcript)</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+              </select>
+            </div>
+
+            <div class="llm-selector">
+              <label for="llm-model">Model</label>
+              <select id="llm-model" disabled>
+                <option value="">Select provider first</option>
+              </select>
+            </div>
+
+            <button id="extract-btn" class="extract-btn">Extract</button>
+          </div>
+        </div>
+
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <span>Extracting transcript...</span>
+        </div>
+
+        <div id="error" class="error hidden"></div>
+
+        <div id="output" class="output">
+          <p class="empty-state">Enter a YouTube URL and click Extract to get started</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Prompt Editor Modal -->
+  <div id="prompt-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Edit LLM Prompt</h2>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="prompt-textarea">System Prompt</label>
+        <textarea id="prompt-textarea" placeholder="Enter your custom prompt..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn modal-btn-secondary" id="prompt-reset">Reset to Default</button>
+        <button class="modal-btn modal-btn-primary" id="prompt-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

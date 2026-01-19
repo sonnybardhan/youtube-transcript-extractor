@@ -4,15 +4,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-A Node.js CLI tool that extracts YouTube video metadata and transcripts using `yt-dlp`. Outputs formatted markdown with title, channel, publish date, duration, views, description, and transcript.
+A Node.js tool that extracts YouTube video metadata and transcripts using `yt-dlp`. Available as both a CLI tool and a web app. When using LLM processing, generates TLDR summaries, key insights, action items, and organizes transcripts into logical sections with topic headers.
 
 ## Requirements
 
 - Node.js (ES modules)
 - `yt-dlp` must be installed and available in PATH
 - `OPENAI_API_KEY` environment variable (optional, for LLM processing)
+- `ANTHROPIC_API_KEY` environment variable (optional, for Anthropic LLM processing)
 
 ## Usage
+
+### Web App (Recommended)
+
+```bash
+# Install dependencies
+npm install
+
+# Start the server
+npm start
+# or: node server.js
+
+# Open in browser
+open http://localhost:3000
+```
+
+Features:
+- Paste one or multiple YouTube URLs (one per line)
+- Choose LLM provider (OpenAI or Anthropic) and model
+- View rendered markdown output with TLDR, Key Insights, Action Items, and sectioned transcript
+- Original transcript preserved in collapsible section
+- History panel shows past extractions (scrolls independently)
+- Click history items to view, delete to remove
+- Edit Prompt button to customize LLM instructions
+
+### CLI
 
 ```bash
 # Run directly
@@ -29,14 +55,56 @@ Output is always saved to `temp/<video-title>.md`. If no output file argument is
 
 ## Architecture
 
-Single-file CLI (`youtube-extractor.js`):
-- Extracts video ID from various YouTube URL formats
-- Uses `yt-dlp` to fetch metadata JSON and subtitles (prefers manual English subs, falls back to auto-generated)
-- Parses SRT format to clean plaintext transcript
-- If `OPENAI_API_KEY` is set, uses GPT-4o-mini to generate a TLDR and format the transcript
-- Outputs structured markdown
+```
+/
+├── server.js           # Express API server
+├── youtube-extractor.js # Original CLI (still works)
+├── public/
+│   ├── index.html      # Web UI
+│   ├── style.css       # Styling
+│   └── app.js          # Frontend logic
+├── lib/
+│   └── extractor.js    # Core extraction logic (shared)
+├── temp/               # Stored extractions
+├── package.json
+└── .env                # API keys
+```
 
-Files are saved to `temp/` directory:
+### Core Module (`lib/extractor.js`)
+- `extract(url, llmConfig)` - Main extraction function
+- `extractVideoId(url)` - Parse YouTube URL/ID
+- `cleanSubtitleText(srt)` - Convert SRT to plain text
+- `sanitizeFilename(title)` - Safe filename from title
+- Supports both OpenAI and Anthropic LLMs
+
+### API Endpoints (`server.js`)
+- `POST /api/extract` - Extract from URL(s) with optional LLM config and custom prompt
+- `GET /api/history` - List all extractions
+- `GET /api/history/:filename` - Get specific extraction
+- `DELETE /api/history/:filename` - Delete extraction
+- `GET /api/config` - Check which API keys are configured
+- `GET /api/prompt` - Get default and custom prompt
+- `POST /api/prompt` - Save custom prompt
+- `DELETE /api/prompt` - Reset prompt to default
+
+### Files in `temp/`
 - `<videoId>.info.json` - raw metadata from yt-dlp
 - `<videoId>.en.srt` - raw subtitles
 - `<video-title>.md` - final formatted output
+- `custom-prompt.txt` - custom LLM prompt (if set)
+
+## LLM Output Structure
+
+When LLM processing is enabled, the output includes:
+1. **TLDR** - 2-3 sentence summary
+2. **Key Insights** - 3-7 important ideas/findings
+3. **Action Items & Takeaways** - practical steps or things to remember
+4. **Sectioned Transcript** - content organized by topic with headers and brief summaries
+5. **Original Transcript** - preserved in a collapsible `<details>` section
+
+## LLM Options
+
+| Provider | Models |
+|----------|--------|
+| OpenAI | gpt-4o-mini, gpt-4o |
+| Anthropic | claude-sonnet-4-20250514, claude-haiku-4-20250514 |

@@ -4,5 +4,11 @@
   "type": "module",
   "bin": {
     "yt-extract": "./youtube-extractor.js"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
   }
 }
