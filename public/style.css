@@ -1053,11 +1053,17 @@ body {
 }
 
 /* Paragraph section headers - italic introductory summaries */
-.output-container em {
+.output-container .section-intro {
   color: #e5e7eb;
   font-style: italic;
   font-size: 1.08em;
   font-weight: 500;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.output-container em {
+  font-style: italic;
 }
 
 .output-container a {
@@ -1907,7 +1913,7 @@ html.light .output-container strong {
   color: #1f2937;
 }
 
-html.light .output-container em {
+html.light .output-container .section-intro {
   color: #374151;
 }
 

@@ -735,6 +735,17 @@ function renderMarkdown(content, noTranscriptWarning = null) {
 
   elements.output.innerHTML = warningHtml + html;
 
+  // Add .section-intro class to italic paragraph headers (em that is only/primary child of p)
+  elements.output.querySelectorAll('p > em:first-child').forEach(em => {
+    const p = em.parentElement;
+    // Check if em is the only significant content in the paragraph
+    const textContent = p.textContent.trim();
+    const emContent = em.textContent.trim();
+    if (textContent === emContent) {
+      em.classList.add('section-intro');
+    }
+  });
+
   // Set up collapsible section click handlers
   elements.output.querySelectorAll('.collapsible-section-header').forEach(header => {
     header.addEventListener('click', () => {
