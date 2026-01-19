@@ -10,12 +10,14 @@ A local web app and CLI tool that extracts YouTube video metadata and transcript
   - Key Insights (3-7 important ideas)
   - Action Items & Takeaways
   - Sectioned transcript with topic headers and summaries
-- **Original Transcript Preserved** - collapsible section with raw transcript split into paragraphs
 - **Web UI** with:
-  - History sidebar (independent scrolling)
-  - Rendered markdown output
-  - Customizable LLM prompt editor
+  - Dark/Light mode toggle (persisted to localStorage)
+  - History sidebar with extraction list
+  - Collapsible sections for easy navigation
+  - Right panel with tabbed Transcript and Metadata views
+  - Customizable LLM prompt editor with code styling
   - Support for multiple URLs at once
+  - All external links open in new tabs
 - **CLI tool** for quick command-line usage
 - **Multiple LLM Providers** - OpenAI and Anthropic support
 
@@ -61,15 +63,23 @@ Open http://localhost:3000 (or your custom port) in your browser.
 - Paste one or multiple YouTube URLs (one per line)
 - Select LLM provider and model (or use raw transcript)
 - Click "Extract" to process
-- View rendered markdown output with:
+- **Main Content Panel:**
   - TLDR, Key Insights, Action Items (when using LLM)
-  - Sectioned transcript with topic headers
-  - Collapsible original transcript
-- Browse extraction history in the sidebar (scrolls independently)
-- Click history items to view past extractions
+  - Collapsible sections for transcript topics
+  - Empty sections display "n/a" instead of being hidden
+- **Right Info Panel (tabbed):**
+  - **Transcript tab** - Original raw transcript
+  - **Metadata tab** - Channel, date, duration, views, URL, description
+  - Click tab icons to expand collapsed panel
+- **Sidebar:**
+  - Extraction history list
+  - Delete extractions with trash icon
+  - Light/Dark mode toggle button
+  - Settings access
 - **Edit Prompt** button to customize LLM instructions
-  - Modify how transcripts are summarized and formatted
-  - Reset to default prompt anytime
+  - Code editor styling with line numbers
+  - Variable chips for quick insertion
+  - Keyboard shortcuts (Cmd+Enter to save, Esc to close)
 
 ### CLI
 

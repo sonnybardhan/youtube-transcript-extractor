@@ -32,11 +32,20 @@ open http://localhost:3000
 Features:
 - Paste one or multiple YouTube URLs (one per line)
 - Choose LLM provider (OpenAI or Anthropic) and model
-- View rendered markdown output with TLDR, Key Insights, Action Items, and sectioned transcript
-- Original transcript preserved in collapsible section
-- History panel shows past extractions (scrolls independently)
-- Click history items to view, delete to remove
-- Edit Prompt button to customize LLM instructions
+- Dark/Light mode toggle (persisted to localStorage)
+- **Main Content:**
+  - TLDR, Key Insights, Action Items, sectioned transcript
+  - Collapsible sections for easy navigation
+  - Empty sections show "n/a" instead of being hidden
+- **Right Info Panel (tabbed):**
+  - Transcript tab - original raw transcript
+  - Metadata tab - channel, date, duration, views, URL, description
+  - Click tabs to expand collapsed panel
+- **Sidebar:**
+  - History list with delete icons
+  - Light/dark mode toggle
+  - Settings button
+- Edit Prompt button with code editor styling and keyboard shortcuts
 
 ### CLI
 
@@ -60,12 +69,13 @@ Output is always saved to `temp/<video-title>.md`. If no output file argument is
 ├── server.js           # Express API server
 ├── youtube-extractor.js # Original CLI (still works)
 ├── public/
-│   ├── index.html      # Web UI
-│   ├── style.css       # Styling
+│   ├── index.html      # Web UI (dark/light theme)
+│   ├── style.css       # Styling with CSS variables
 │   └── app.js          # Frontend logic
 ├── lib/
 │   └── extractor.js    # Core extraction logic (shared)
 ├── temp/               # Stored extractions
+├── notes.md            # Development notes and feature ideas
 ├── package.json
 └── .env                # API keys
 ```
