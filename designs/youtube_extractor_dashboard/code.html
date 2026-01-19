@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>YouTube Extractor Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#126c87",
+                        "background-light": "#f7f7f7",
+                        "background-dark": "#121212",
+                        "surface-dark": "#1E1E1E",
+                        "border-dark": "#383838",
+                        "text-main": "#E0E0E0",
+                        "text-muted": "#A0A0A0",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for that dev-tool feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121212; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #383838; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4A4A4A; 
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-text-main font-display overflow-hidden">
+<div class="relative flex h-screen w-full overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="flex flex-col w-64 h-full bg-[#111617] dark:bg-surface-dark border-r border-border-dark flex-shrink-0 z-20">
+<div class="p-4 flex items-center gap-3 border-b border-border-dark">
+<div class="flex items-center justify-center size-10 rounded-lg bg-primary/20 text-primary">
+<span class="material-symbols-outlined">smart_display</span>
+</div>
+<div>
+<h1 class="text-white text-base font-bold leading-tight">YT Extractor</h1>
+<p class="text-text-muted text-xs font-normal">v2.4.0 • Pro</p>
+</div>
+</div>
+<div class="flex flex-col gap-2 p-3 overflow-y-auto flex-1">
+<button class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary hover:bg-primary/90 transition-colors group mb-4 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-white">add</span>
+<p class="text-white text-sm font-semibold">New Extraction</p>
+</button>
+<div class="px-2 pb-2">
+<p class="text-xs font-semibold text-text-muted uppercase tracking-wider">History</p>
+</div>
+<div class="flex flex-col gap-1">
+<!-- History Item: Active-ish style -->
+<button class="flex flex-col gap-1 px-3 py-2 rounded-lg hover:bg-white/5 text-left group border-l-2 border-transparent transition-all">
+<div class="flex items-center justify-between w-full">
+<p class="text-sm font-medium text-white truncate max-w-[160px]">The Future of AI...</p>
+</div>
+<p class="text-xs text-text-muted">2h ago • 3 videos</p>
+</button>
+<button class="flex flex-col gap-1 px-3 py-2 rounded-lg hover:bg-white/5 text-left group border-l-2 border-transparent transition-all">
+<div class="flex items-center justify-between w-full">
+<p class="text-sm font-medium text-text-muted group-hover:text-white truncate max-w-[160px]">Python Tutorial #4</p>
+</div>
+<p class="text-xs text-text-muted/60">Yesterday • 1 video</p>
+</button>
+<button class="flex flex-col gap-1 px-3 py-2 rounded-lg hover:bg-white/5 text-left group border-l-2 border-transparent transition-all">
+<div class="flex items-center justify-between w-full">
+<p class="text-sm font-medium text-text-muted group-hover:text-white truncate max-w-[160px]">Lex Fridman #402</p>
+</div>
+<p class="text-xs text-text-muted/60">Oct 24 • 1 video</p>
+</button>
+<button class="flex flex-col gap-1 px-3 py-2 rounded-lg hover:bg-white/5 text-left group border-l-2 border-transparent transition-all">
+<div class="flex items-center justify-between w-full">
+<p class="text-sm font-medium text-text-muted group-hover:text-white truncate max-w-[160px]">Advanced React Patterns</p>
+</div>
+<p class="text-xs text-text-muted/60">Oct 22 • 5 videos</p>
+</button>
+<button class="flex flex-col gap-1 px-3 py-2 rounded-lg hover:bg-white/5 text-left group border-l-2 border-transparent transition-all">
+<div class="flex items-center justify-between w-full">
+<p class="text-sm font-medium text-text-muted group-hover:text-white truncate max-w-[160px]">System Design Interview</p>
+</div>
+<p class="text-xs text-text-muted/60">Oct 20 • 2 videos</p>
+</button>
+</div>
+</div>
+<div class="p-3 border-t border-border-dark">
+<button class="flex w-full items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</button>
+<button class="flex w-full items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-white transition-colors mt-1">
+<span class="material-symbols-outlined text-[20px]">help</span>
+<span class="text-sm font-medium">Help &amp; Docs</span>
+</button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 h-full overflow-y-auto bg-background-light dark:bg-background-dark relative flex flex-col items-center">
+<div class="w-full max-w-4xl px-6 py-10 flex flex-col gap-8">
+<!-- Page Header -->
+<div class="flex flex-col gap-2">
+<h2 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Batch Extraction</h2>
+<p class="text-slate-500 dark:text-text-muted text-base max-w-2xl">
+                        Generate comprehensive summaries and extract structured data from multiple YouTube videos simultaneously.
+                    </p>
+</div>
+<!-- Input Panel -->
+<div class="w-full bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded-xl shadow-sm overflow-hidden flex flex-col">
+<!-- Text Area -->
+<div class="p-1 relative group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l opacity-0 transition-opacity peer-focus:opacity-100"></div>
+<textarea class="peer w-full min-h-[300px] bg-transparent border-none focus:ring-0 p-5 font-mono text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-text-muted/50 resize-y focus:outline-none" placeholder="https://youtube.com/watch?v=...
+https://youtube.com/watch?v=...
+https://youtube.com/watch?v=..." spellcheck="false"></textarea>
+<!-- Floating hint -->
+<div class="absolute bottom-4 right-4 pointer-events-none opacity-50">
+<span class="text-xs bg-slate-100 dark:bg-[#2A2A2A] px-2 py-1 rounded text-slate-500 dark:text-text-muted border border-slate-200 dark:border-border-dark">One URL per line</span>
+</div>
+</div>
+<!-- Configuration Toolbar -->
+<div class="px-5 py-4 bg-slate-50 dark:bg-[#181818] border-t border-slate-200 dark:border-border-dark flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-4 flex-wrap">
+<!-- Provider Dropdown -->
+<div class="flex flex-col gap-1">
+<label class="text-[10px] uppercase font-bold text-text-muted tracking-wider">Provider</label>
+<div class="relative">
+<select class="appearance-none bg-white dark:bg-[#252525] border border-slate-200 dark:border-border-dark text-slate-900 dark:text-white text-sm rounded-lg pl-3 pr-8 py-2 focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors min-w-[140px]">
+<option selected="" value="openai">OpenAI</option>
+<option value="anthropic">Anthropic</option>
+<option value="meta">Meta (Llama)</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">expand_more</span>
+</div>
+</div>
+<!-- Model Dropdown -->
+<div class="flex flex-col gap-1">
+<label class="text-[10px] uppercase font-bold text-text-muted tracking-wider">Model</label>
+<div class="relative">
+<select class="appearance-none bg-white dark:bg-[#252525] border border-slate-200 dark:border-border-dark text-slate-900 dark:text-white text-sm rounded-lg pl-3 pr-8 py-2 focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors min-w-[160px]">
+<option selected="" value="gpt-4o">GPT-4o</option>
+<option value="gpt-4-turbo">GPT-4 Turbo</option>
+<option value="claude-3-5">Claude 3.5 Sonnet</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<div class="flex items-end h-full pt-4">
+<button class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-border-dark text-slate-600 dark:text-text-main text-sm font-medium hover:bg-slate-100 dark:hover:bg-[#252525] transition-colors">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+                                Edit System Prompt
+                            </button>
+</div>
+</div>
+</div>
+<!-- Action Area -->
+<div class="flex flex-col items-center gap-6">
+<button class="group relative w-full max-w-sm flex items-center justify-center gap-3 bg-primary hover:bg-[#1582a1] text-white h-12 rounded-lg font-bold shadow-lg shadow-primary/25 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined group-hover:animate-pulse">bolt</span>
+<span>Extract Transcripts</span>
+</button>
+<!-- Status / Empty State -->
+<div class="w-full flex flex-col items-center justify-center py-12 border-2 border-dashed border-slate-200 dark:border-border-dark rounded-xl bg-slate-50/50 dark:bg-transparent text-center gap-4">
+<div class="size-16 rounded-full bg-slate-100 dark:bg-surface-dark flex items-center justify-center">
+<span class="material-symbols-outlined text-slate-400 dark:text-text-muted text-3xl">auto_awesome</span>
+</div>
+<div class="flex flex-col gap-1">
+<p class="text-sm font-medium text-slate-900 dark:text-white">Ready to process</p>
+<p class="text-xs text-slate-500 dark:text-text-muted">Output will appear here in Markdown format</p>
+</div>
+</div>
+</div>
+<!-- Footer / Usage Stats -->
+<div class="flex justify-between items-center text-xs text-slate-400 dark:text-text-muted/40 px-2">
+<p>API Status: <span class="text-emerald-500 font-medium">Operational</span></p>
+<p>Credits remaining: 450/500</p>
+</div>
+</div>
+</main>
+</div>
+</body></html>

@@ -1,3 +1,6 @@
+// ========================================
+// Configuration
+// ========================================
 const LLM_MODELS = {
   openai: [
     { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
@@ -9,65 +12,142 @@ const LLM_MODELS = {
   ]
 };
 
+// ========================================
+// State
+// ========================================
 let apiConfig = { hasOpenAI: false, hasAnthropic: false };
 let customPrompt = null;
 let defaultPrompt = '';
+let currentMarkdown = '';
 
+// ========================================
 // DOM Elements
-const urlsInput = document.getElementById('urls');
-const providerSelect = document.getElementById('llm-provider');
-const modelSelect = document.getElementById('llm-model');
-const extractBtn = document.getElementById('extract-btn');
-const loadingEl = document.getElementById('loading');
-const errorEl = document.getElementById('error');
-const outputEl = document.getElementById('output');
-const historyList = document.getElementById('history-list');
+// ========================================
+const elements = {
+  // Views
+  inputView: document.getElementById('input-view'),
+  resultsView: document.getElementById('results-view'),
 
-// Modal Elements
-const promptModal = document.getElementById('prompt-modal');
-const promptTextarea = document.getElementById('prompt-textarea');
-const promptEditorBtn = document.getElementById('prompt-editor-btn');
-const modalCloseBtn = document.getElementById('modal-close');
-const promptSaveBtn = document.getElementById('prompt-save');
-const promptResetBtn = document.getElementById('prompt-reset');
+  // Input elements
+  urlsInput: document.getElementById('urls'),
+  providerSelect: document.getElementById('llm-provider'),
+  modelSelect: document.getElementById('llm-model'),
+  extractBtn: document.getElementById('extract-btn'),
+  editPromptBtn: document.getElementById('edit-prompt-btn'),
+  newExtractionBtn: document.getElementById('new-extraction-btn'),
 
+  // History
+  historyList: document.getElementById('history-list'),
+
+  // Results
+  output: document.getElementById('output'),
+  currentTitle: document.getElementById('current-title'),
+  backToInput: document.getElementById('back-to-input'),
+  copyMarkdownBtn: document.getElementById('copy-markdown-btn'),
+
+  // Loading & Status
+  loadingOverlay: document.getElementById('loading-overlay'),
+  apiStatus: document.getElementById('api-status'),
+
+  // Modal
+  promptModal: document.getElementById('prompt-modal'),
+  promptTextarea: document.getElementById('prompt-textarea'),
+  modalClose: document.getElementById('modal-close'),
+  promptSave: document.getElementById('prompt-save'),
+  promptCancel: document.getElementById('prompt-cancel'),
+  lineNumbers: document.getElementById('line-numbers'),
+  variableChips: document.querySelectorAll('.variable-chip'),
+
+  // Toast
+  errorToast: document.getElementById('error-toast'),
+  errorMessage: document.getElementById('error-message')
+};
+
+// ========================================
 // Initialize
+// ========================================
 async function init() {
   await loadConfig();
   await loadHistory();
   await loadPrompt();
 
-  providerSelect.addEventListener('change', handleProviderChange);
-  extractBtn.addEventListener('click', handleExtract);
-
-  // Modal event listeners
-  promptEditorBtn.addEventListener('click', openPromptModal);
-  modalCloseBtn.addEventListener('click', closePromptModal);
-  promptSaveBtn.addEventListener('click', savePrompt);
-  promptResetBtn.addEventListener('click', resetPrompt);
-  promptModal.addEventListener('click', (e) => {
-    if (e.target === promptModal) closePromptModal();
-  });
+  setupEventListeners();
+  updateLineNumbers();
 }
 
+function setupEventListeners() {
+  // Provider change
+  elements.providerSelect.addEventListener('change', handleProviderChange);
+
+  // Extract button
+  elements.extractBtn.addEventListener('click', handleExtract);
+
+  // New extraction button
+  elements.newExtractionBtn.addEventListener('click', showInputView);
+
+  // Back to input
+  elements.backToInput.addEventListener('click', (e) => {
+    e.preventDefault();
+    showInputView();
+  });
+
+  // Copy markdown
+  elements.copyMarkdownBtn.addEventListener('click', handleCopyMarkdown);
+
+  // Modal controls
+  elements.editPromptBtn.addEventListener('click', openPromptModal);
+  elements.modalClose.addEventListener('click', closePromptModal);
+  elements.promptCancel.addEventListener('click', closePromptModal);
+  elements.promptSave.addEventListener('click', savePrompt);
+  elements.promptModal.addEventListener('click', (e) => {
+    if (e.target === elements.promptModal) closePromptModal();
+  });
+
+  // Line numbers sync
+  elements.promptTextarea.addEventListener('input', updateLineNumbers);
+  elements.promptTextarea.addEventListener('scroll', syncLineNumbersScroll);
+
+  // Variable chips
+  elements.variableChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const variable = chip.dataset.var;
+      navigator.clipboard.writeText(variable);
+      showToast(`Copied ${variable} to clipboard`, 'success');
+    });
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', handleKeyboardShortcuts);
+}
+
+// ========================================
+// API Functions
+// ========================================
 async function loadConfig() {
   try {
     const res = await fetch('/api/config');
     apiConfig = await res.json();
 
-    // Disable providers without API keys
-    Array.from(providerSelect.options).forEach(opt => {
+    // Update provider options
+    Array.from(elements.providerSelect.options).forEach(opt => {
       if (opt.value === 'openai' && !apiConfig.hasOpenAI) {
         opt.disabled = true;
-        opt.textContent += ' (no API key)';
+        opt.textContent += ' (no key)';
       }
       if (opt.value === 'anthropic' && !apiConfig.hasAnthropic) {
         opt.disabled = true;
-        opt.textContent += ' (no API key)';
+        opt.textContent += ' (no key)';
       }
     });
+
+    // Update status
+    const hasAnyKey = apiConfig.hasOpenAI || apiConfig.hasAnthropic;
+    elements.apiStatus.textContent = hasAnyKey ? 'Operational' : 'No API Keys';
+    elements.apiStatus.className = hasAnyKey ? 'status-ok' : 'status-error';
   } catch (err) {
     console.error('Failed to load config:', err);
+    elements.apiStatus.textContent = 'Error';
+    elements.apiStatus.className = 'status-error';
   }
 }
 
@@ -81,31 +161,45 @@ async function loadHistory() {
   }
 }
 
+async function loadPrompt() {
+  try {
+    const res = await fetch('/api/prompt');
+    const data = await res.json();
+    defaultPrompt = data.defaultPrompt;
+    customPrompt = data.customPrompt;
+  } catch (err) {
+    console.error('Failed to load prompt:', err);
+  }
+}
+
+// ========================================
+// History Functions
+// ========================================
 function renderHistory(files) {
   if (files.length === 0) {
-    historyList.innerHTML = '<p class="empty-state">No extractions yet</p>';
+    elements.historyList.innerHTML = '<p class="empty-state">No extractions yet</p>';
     return;
   }
 
-  historyList.innerHTML = files.map(file => `
-    <div class="history-item" data-filename="${escapeHtml(file.filename)}">
+  elements.historyList.innerHTML = files.map(file => `
+    <button class="history-item" data-filename="${escapeHtml(file.filename)}">
       <div class="history-item-title" title="${escapeHtml(file.title)}">${escapeHtml(file.title)}</div>
-      <div class="history-item-date">${formatDate(file.date)}</div>
+      <div class="history-item-meta">${formatDate(file.date)}</div>
       <div class="history-item-actions">
         <button class="delete-btn" data-filename="${escapeHtml(file.filename)}">Delete</button>
       </div>
-    </div>
+    </button>
   `).join('');
 
   // Add click handlers
-  historyList.querySelectorAll('.history-item').forEach(item => {
+  elements.historyList.querySelectorAll('.history-item').forEach(item => {
     item.addEventListener('click', (e) => {
       if (e.target.classList.contains('delete-btn')) return;
       loadHistoryItem(item.dataset.filename);
     });
   });
 
-  historyList.querySelectorAll('.delete-btn').forEach(btn => {
+  elements.historyList.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       deleteHistoryItem(btn.dataset.filename);
@@ -119,14 +213,20 @@ async function loadHistoryItem(filename) {
     if (!res.ok) throw new Error('Failed to load file');
 
     const data = await res.json();
-    renderMarkdown(data.content);
+    currentMarkdown = data.content;
+
+    // Extract title from markdown
+    const titleMatch = data.content.match(/^#\s+(.+)$/m);
+    const title = titleMatch ? titleMatch[1] : filename.replace('.md', '');
+
+    showResultsView(data.content, title);
 
     // Update active state
-    historyList.querySelectorAll('.history-item').forEach(item => {
+    elements.historyList.querySelectorAll('.history-item').forEach(item => {
       item.classList.toggle('active', item.dataset.filename === filename);
     });
   } catch (err) {
-    showError(err.message);
+    showToast(err.message);
   }
 }
 
@@ -141,42 +241,42 @@ async function deleteHistoryItem(filename) {
 
     await loadHistory();
   } catch (err) {
-    showError(err.message);
+    showToast(err.message);
   }
 }
 
+// ========================================
+// Extraction Functions
+// ========================================
 function handleProviderChange() {
-  const provider = providerSelect.value;
+  const provider = elements.providerSelect.value;
 
   if (!provider) {
-    modelSelect.disabled = true;
-    modelSelect.innerHTML = '<option value="">Select provider first</option>';
+    elements.modelSelect.disabled = true;
+    elements.modelSelect.innerHTML = '<option value="">Select provider</option>';
     return;
   }
 
   const models = LLM_MODELS[provider] || [];
-  modelSelect.disabled = false;
-  modelSelect.innerHTML = models.map(m =>
+  elements.modelSelect.disabled = false;
+  elements.modelSelect.innerHTML = models.map(m =>
     `<option value="${m.value}">${m.label}</option>`
   ).join('');
 }
 
 async function handleExtract() {
-  const urlText = urlsInput.value.trim();
+  const urlText = elements.urlsInput.value.trim();
   if (!urlText) {
-    showError('Please enter at least one YouTube URL');
+    showToast('Please enter at least one YouTube URL');
     return;
   }
 
   const urls = urlText.split('\n').map(u => u.trim()).filter(u => u);
-
-  const provider = providerSelect.value;
-  const model = modelSelect.value;
-
+  const provider = elements.providerSelect.value;
+  const model = elements.modelSelect.value;
   const llm = provider && model ? { provider, model } : null;
 
   setLoading(true);
-  hideError();
 
   try {
     const res = await fetch('/api/extract', {
@@ -189,91 +289,77 @@ async function handleExtract() {
 
     if (data.errors && data.errors.length > 0) {
       const errorMsgs = data.errors.map(e => `${e.url}: ${e.error}`).join('\n');
-      showError(errorMsgs);
+      showToast(errorMsgs);
     }
 
     if (data.results && data.results.length > 0) {
-      // Show the first result
-      renderMarkdown(data.results[0].markdown);
+      // Show the first result (or combined if multiple)
+      let markdown = data.results[0].markdown;
+      let title = data.results[0].title;
 
-      // If multiple results, combine them
       if (data.results.length > 1) {
-        const combined = data.results.map(r => r.markdown).join('\n\n---\n\n');
-        renderMarkdown(combined);
+        markdown = data.results.map(r => r.markdown).join('\n\n---\n\n');
+        title = `${data.results.length} Videos`;
       }
 
-      // Refresh history
+      currentMarkdown = markdown;
+      showResultsView(markdown, title);
       await loadHistory();
     } else if (!data.errors || data.errors.length === 0) {
-      showError('No results returned');
+      showToast('No results returned');
     }
   } catch (err) {
-    showError(`Request failed: ${err.message}`);
+    showToast(`Request failed: ${err.message}`);
   } finally {
     setLoading(false);
   }
 }
 
-function renderMarkdown(content) {
-  // Note: marked library renders markdown. Content comes from our own extractor
-  // which processes YouTube metadata. For production use, consider DOMPurify.
-  outputEl.innerHTML = marked.parse(content);
-}
+// ========================================
+// View Management
+// ========================================
+function showInputView() {
+  elements.inputView.classList.remove('hidden');
+  elements.resultsView.classList.add('hidden');
 
-function setLoading(isLoading) {
-  loadingEl.classList.toggle('hidden', !isLoading);
-  extractBtn.disabled = isLoading;
-}
-
-function showError(message) {
-  errorEl.textContent = message;
-  errorEl.classList.remove('hidden');
-}
-
-function hideError() {
-  errorEl.classList.add('hidden');
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-function formatDate(isoString) {
-  const date = new Date(isoString);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+  // Clear active history state
+  elements.historyList.querySelectorAll('.history-item').forEach(item => {
+    item.classList.remove('active');
   });
 }
 
-// Prompt functions
-async function loadPrompt() {
-  try {
-    const res = await fetch('/api/prompt');
-    const data = await res.json();
-    defaultPrompt = data.defaultPrompt;
-    customPrompt = data.customPrompt;
-  } catch (err) {
-    console.error('Failed to load prompt:', err);
-  }
+function showResultsView(markdown, title) {
+  elements.inputView.classList.add('hidden');
+  elements.resultsView.classList.remove('hidden');
+  elements.currentTitle.textContent = truncate(title, 40);
+  renderMarkdown(markdown);
 }
 
+function renderMarkdown(content) {
+  elements.output.innerHTML = marked.parse(content);
+}
+
+function setLoading(isLoading) {
+  elements.loadingOverlay.classList.toggle('hidden', !isLoading);
+  elements.extractBtn.disabled = isLoading;
+}
+
+// ========================================
+// Modal Functions
+// ========================================
 function openPromptModal() {
-  promptTextarea.value = customPrompt || defaultPrompt;
-  promptModal.classList.remove('hidden');
+  elements.promptTextarea.value = customPrompt || defaultPrompt;
+  elements.promptModal.classList.remove('hidden');
+  updateLineNumbers();
+  elements.promptTextarea.focus();
 }
 
 function closePromptModal() {
-  promptModal.classList.add('hidden');
+  elements.promptModal.classList.add('hidden');
 }
 
 async function savePrompt() {
-  const newPrompt = promptTextarea.value.trim();
+  const newPrompt = elements.promptTextarea.value.trim();
 
   try {
     const res = await fetch('/api/prompt', {
@@ -286,22 +372,93 @@ async function savePrompt() {
 
     customPrompt = newPrompt === defaultPrompt ? null : newPrompt;
     closePromptModal();
+    showToast('Prompt saved successfully', 'success');
   } catch (err) {
-    showError(err.message);
+    showToast(err.message);
   }
 }
 
-async function resetPrompt() {
-  promptTextarea.value = defaultPrompt;
-  customPrompt = null;
+function updateLineNumbers() {
+  const lines = elements.promptTextarea.value.split('\n').length;
+  const lineNumbersHtml = Array.from({ length: Math.max(lines, 20) }, (_, i) =>
+    `<span>${i + 1}</span>`
+  ).join('');
+  elements.lineNumbers.innerHTML = lineNumbersHtml;
+}
 
-  try {
-    await fetch('/api/prompt', {
-      method: 'DELETE'
-    });
-  } catch (err) {
-    console.error('Failed to reset prompt:', err);
+function syncLineNumbersScroll() {
+  elements.lineNumbers.scrollTop = elements.promptTextarea.scrollTop;
+}
+
+// ========================================
+// Utility Functions
+// ========================================
+function handleCopyMarkdown() {
+  if (!currentMarkdown) return;
+
+  navigator.clipboard.writeText(currentMarkdown).then(() => {
+    showToast('Copied to clipboard', 'success');
+  }).catch(() => {
+    showToast('Failed to copy');
+  });
+}
+
+function handleKeyboardShortcuts(e) {
+  // Escape to close modal
+  if (e.key === 'Escape' && !elements.promptModal.classList.contains('hidden')) {
+    closePromptModal();
+  }
+
+  // Cmd/Ctrl + Enter to save prompt
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !elements.promptModal.classList.contains('hidden')) {
+    e.preventDefault();
+    savePrompt();
   }
 }
 
+function showToast(message, type = 'error') {
+  elements.errorMessage.textContent = message;
+  elements.errorToast.style.borderColor = type === 'success' ? 'var(--success)' : 'var(--error)';
+  elements.errorToast.querySelector('.material-symbols-outlined').textContent = type === 'success' ? 'check_circle' : 'error';
+  elements.errorToast.querySelector('.material-symbols-outlined').style.color = type === 'success' ? 'var(--success)' : 'var(--error)';
+  elements.errorToast.classList.remove('hidden');
+
+  setTimeout(() => {
+    elements.errorToast.classList.add('hidden');
+  }, 4000);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function truncate(str, length) {
+  if (str.length <= length) return str;
+  return str.substring(0, length) + '...';
+}
+
+function formatDate(isoString) {
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  });
+}
+
+// ========================================
+// Start App
+// ========================================
 init();

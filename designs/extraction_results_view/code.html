@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Extraction Results - Transcript LLM</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#126c87",
+                        "primary-dark": "#0e556b",
+                        "background-light": "#f7f7f7",
+                        "background-dark": "#121212",
+                        "surface-dark": "#1E1E1E",
+                        "border-dark": "#383838",
+                    },
+                    fontFamily: {
+                        "display": ["Manrope", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #383838;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4a4a4a;
+        }
+        
+        .prose-content p {
+            margin-bottom: 1.25rem;
+            line-height: 1.7;
+            color: #d1d5db;
+        }
+        .prose-content h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: #f3f4f6;
+        }
+        .prose-content ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .prose-content li {
+            margin-bottom: 0.5rem;
+            color: #d1d5db;
+        }
+        .timestamp {
+            font-family: 'JetBrains Mono', monospace;
+            color: #126c87;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white antialiased overflow-hidden h-screen flex">
+<!-- Sidebar -->
+<aside class="w-72 bg-[#111617] border-r border-border-dark flex flex-col shrink-0 transition-all duration-300 z-20">
+<div class="flex flex-col h-full p-4 justify-between">
+<div class="flex flex-col gap-6">
+<!-- Header -->
+<div class="flex flex-col px-2 pt-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-3xl">auto_awesome</span>
+<h1 class="text-white text-lg font-bold tracking-tight">Transcript LLM</h1>
+</div>
+<p class="text-slate-500 text-xs font-mono mt-1 pl-9">v1.0.2 • Stable</p>
+</div>
+<!-- Main Nav -->
+<div class="flex flex-col gap-1">
+<button class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white transition-colors group">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">add_circle</span>
+<span class="text-sm font-medium">New Extraction</span>
+</button>
+<div class="mt-4 mb-2 px-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Recent</div>
+<!-- Active Item -->
+<button class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/20 text-white relative group">
+<div class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 bg-primary rounded-r"></div>
+<span class="material-symbols-outlined text-primary text-[20px] filled">description</span>
+<div class="flex flex-col items-start overflow-hidden">
+<span class="text-sm font-medium truncate w-full text-left">Neural Netw...</span>
+<span class="text-[10px] text-primary/70">Just now</span>
+</div>
+</button>
+<button class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">description</span>
+<div class="flex flex-col items-start overflow-hidden">
+<span class="text-sm font-medium truncate w-full text-left">SpaceX Launch...</span>
+<span class="text-[10px] text-slate-600">2h ago</span>
+</div>
+</button>
+<button class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-white/5 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">description</span>
+<div class="flex flex-col items-start overflow-hidden">
+<span class="text-sm font-medium truncate w-full text-left">React 19 Upd...</span>
+<span class="text-[10px] text-slate-600">Yesterday</span>
+</div>
+</button>
+</div>
+</div>
+<!-- Footer Nav -->
+<div class="flex flex-col gap-1 border-t border-border-dark pt-4">
+<button class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</button>
+<button class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined text-[20px]">account_circle</span>
+<span class="text-sm font-medium">Account</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col h-full overflow-hidden bg-background-dark relative">
+<!-- Top Toolbar -->
+<header class="h-16 border-b border-border-dark flex items-center justify-between px-6 bg-background-dark/80 backdrop-blur-md z-10 sticky top-0">
+<div class="flex items-center gap-2 text-sm">
+<a class="text-slate-500 hover:text-white transition-colors" href="#">Home</a>
+<span class="text-slate-600">/</span>
+<span class="text-slate-500">Extractions</span>
+<span class="text-slate-600">/</span>
+<span class="text-white font-medium">Building a Neural Network...</span>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 h-9 px-3 rounded-md border border-border-dark bg-transparent text-slate-300 hover:text-white hover:border-slate-500 hover:bg-white/5 transition-all text-xs font-bold uppercase tracking-wide">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+                    Copy Markdown
+                </button>
+<button class="flex items-center gap-2 h-9 px-4 rounded-md bg-primary hover:bg-primary-dark text-white shadow-lg shadow-primary/20 transition-all text-xs font-bold uppercase tracking-wide">
+<span class="material-symbols-outlined text-[18px]">ios_share</span>
+                    Export
+                </button>
+</div>
+</header>
+<!-- Scrollable Document Area -->
+<div class="flex-1 overflow-y-auto custom-scrollbar">
+<div class="max-w-3xl mx-auto py-10 px-6 pb-32">
+<!-- Metadata Card -->
+<div class="bg-surface-dark border border-border-dark rounded-xl p-6 mb-8 shadow-sm">
+<div class="flex gap-6 items-start">
+<!-- Thumbnail Placeholder -->
+<div class="w-32 h-20 shrink-0 rounded-lg overflow-hidden relative border border-white/10 group cursor-pointer">
+<div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors z-10"></div>
+<img alt="Video Thumbnail" class="w-full h-full object-cover" data-alt="Abstract neural network visualization with nodes and connections" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfeIGIvHEQVUrRRpax5A3hl84Ya-DMDjkNi0gniOyYbi3del_OabKAVtkkQIJ31fK9wAX4A5-1cGDcIfk0E9M8OSI1v9iG_ZGjVooJ7Q9N0f_3CM9PojS6M_I5ibSpJcxgHCA4WG9830LivJVWMf9T8ExognaFpKVQscsAl7J4m0YR1NEHnKs1c4z-rE6t_M4RkG5GPQXulK56l5EJj-p2v6GQwsMHAEUYX9bqu0dREyyuNe0r2rLnGvSu9gWfT3Foszr9X41s1T4"/>
+<div class="absolute bottom-1 right-1 bg-black/80 text-white text-[9px] font-bold px-1 rounded z-20 font-mono">1:24:12</div>
+<div class="absolute inset-0 flex items-center justify-center z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white">play_circle</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<h1 class="text-xl md:text-2xl font-bold text-white leading-tight mb-3">Building a Neural Network from Scratch</h1>
+<div class="flex flex-wrap items-center gap-y-2 gap-x-4 text-xs text-slate-400 font-medium">
+<div class="flex items-center gap-1.5 text-slate-300">
+<div class="w-5 h-5 rounded-full bg-slate-700 overflow-hidden">
+<img alt="Channel Avatar" class="w-full h-full object-cover" data-alt="Andrej Karpathy channel avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVKqPiEG-orX6yaGxdtLgwzQjVWmFna3uD1c-gYOBvVZGMQ5_lk_EPWc6VSENNWvlxQthdKkNUKOZ2ZxPc0zzkAbLBguXPd3ZjbP6bBXy_xTGdB5LW2E6GcjYHClLCwJ_OjpKoBjmMc4UtN7mLPgGGut4aNwj8dve4tGZlLep8ujs33fX7_SJRGwC_nD0gBQwqV0XoJ1Tqm_e4zTqitwE89qlUbCfWOpbv1uBEVYOJuTJAQJswuUzArT0nGJRdcyPz1AdcssgSvr0"/>
+</div>
+<span>Andrej Karpathy</span>
+</div>
+<span class="w-1 h-1 rounded-full bg-slate-600"></span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">calendar_today</span>
+<span>Oct 12, 2023</span>
+</div>
+<span class="w-1 h-1 rounded-full bg-slate-600"></span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">visibility</span>
+<span>2.5M Views</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- TLDR Section -->
+<div class="mb-10 relative">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-lg"></div>
+<div class="bg-primary/5 border border-primary/20 border-l-0 rounded-r-lg p-6">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary">auto_awesome</span>
+<h2 class="text-sm font-bold uppercase tracking-wider text-primary">TLDR Summary</h2>
+</div>
+<ul class="space-y-3">
+<li class="flex gap-3 text-slate-300 text-sm leading-relaxed">
+<span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+<span>The video provides a comprehensive step-by-step guide on building a neural network completely from scratch using only Python and basic math libraries, avoiding high-level frameworks like PyTorch initially.</span>
+</li>
+<li class="flex gap-3 text-slate-300 text-sm leading-relaxed">
+<span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+<span>Karpathy emphasizes the importance of understanding backpropagation ("backprop") intuitively, demonstrating how gradients flow backwards through the computational graph to update weights.</span>
+</li>
+<li class="flex gap-3 text-slate-300 text-sm leading-relaxed">
+<span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+<span>A custom `Value` object is created to handle scalar values and their gradients, which serves as the fundamental building block for the `Micrograd` engine built in the tutorial.</span>
+</li>
+<li class="flex gap-3 text-slate-300 text-sm leading-relaxed">
+<span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+<span>The session concludes by training the scratch-built network on a simple classification problem, showing the loss decreasing over iterations and the decision boundary forming.</span>
+</li>
+</ul>
+</div>
+</div>
+<!-- Transcript Section -->
+<div>
+<div class="flex items-center justify-between mb-6 border-b border-border-dark pb-2">
+<h2 class="text-lg font-bold text-white">Full Transcript</h2>
+<div class="flex gap-2">
+<button class="p-1.5 text-slate-400 hover:text-white rounded hover:bg-white/10" title="Search">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</button>
+<button class="p-1.5 text-slate-400 hover:text-white rounded hover:bg-white/10" title="Text Settings">
+<span class="material-symbols-outlined text-[20px]">text_fields</span>
+</button>
+</div>
+</div>
+<article class="prose-content text-base font-display">
+<div class="mb-8">
+<h3>Introduction to Micrograd</h3>
+<p>
+<span class="timestamp">[00:00:00]</span>
+                                Hello everyone. Today we are going to build a neural network from scratch. Specifically, we are going to build a small autograd engine called <strong>Micrograd</strong>. It basically implements backpropagation. Backpropagation is this algorithm that really is at the core of how neural networks learn.
+                            </p>
+<p>
+<span class="timestamp">[00:01:15]</span>
+                                What I think is interesting about Micrograd is that it's tiny. It's about 100 lines of code, maybe 150. But it supports everything you need to build and train neural networks. We're not going to use PyTorch or TensorFlow; we are going to build the machinery that is inside those libraries to understand how they work under the hood.
+                            </p>
+</div>
+<div class="mb-8">
+<h3>Understanding Derivatives</h3>
+<p>
+<span class="timestamp">[00:05:30]</span>
+                                Let's start with the definition of a derivative. If you have a function <code class="bg-white/10 px-1 py-0.5 rounded text-sm font-mono text-primary-300">f(x)</code>, the derivative tells you how the function changes if you slightly bump the input. Formally, it's the limit as h approaches zero of <code class="bg-white/10 px-1 py-0.5 rounded text-sm font-mono text-primary-300">(f(x+h) - f(x)) / h</code>.
+                            </p>
+<p>
+<span class="timestamp">[00:08:45]</span>
+                                We can verify this numerically. Let's define a simple quadratic function in Python and see what happens when we change x by a tiny amount, say 0.0001. You'll see that the slope we calculate matches the analytical derivative exactly. This intuition is crucial because neural networks are essentially just massive mathematical expressions that we differentiate.
+                            </p>
+</div>
+<div class="mb-8">
+<h3>Building the Value Object</h3>
+<p>
+<span class="timestamp">[00:15:20]</span>
+                                Now, let's create a class called <code>Value</code>. This class will wrap a single floating point number. But we want it to do more than just hold a number; we want it to keep track of its children—the other values that created it—and the operation that produced it (like addition or multiplication).
+                            </p>
+<ul>
+<li><strong>data:</strong> The actual scalar value.</li>
+<li><strong>grad:</strong> The gradient, which represents the derivative of the final output with respect to this value. Initialize it to zero.</li>
+<li><strong>_prev:</strong> A set of children nodes to build the graph.</li>
+</ul>
+<p>
+<span class="timestamp">[00:18:10]</span>
+                                We will implement the `__add__` and `__mul__` magic methods so we can write expressions like <code>a + b</code> or <code>a * b</code> naturally in Python, but under the hood, we are building a computational graph.
+                            </p>
+</div>
+<div class="mb-8">
+<h3>Manual Backpropagation</h3>
+<p>
+<span class="timestamp">[00:28:05]</span>
+                                Before we automate it, let's do backpropagation manually. We have our expression graph. The output node, let's call it <code>L</code> (for Loss), has a gradient of 1.0 with respect to itself. Now we work backwards. If <code>L = d + f</code>, what is the derivative of L with respect to d? It's 1.0. The local derivative of addition acts as a router of gradients.
+                            </p>
+<p>
+<span class="timestamp">[00:32:00]</span>
+                                For multiplication, say <code>d = c * e</code>, the derivative of d with respect to c is e. So the chain rule says we take the gradient coming into d from above, and multiply it by the local derivative. This is the essence of backprop: recursive application of the chain rule.
+                            </p>
+</div>
+</article>
+<!-- Bottom Action -->
+<div class="mt-12 flex justify-center pb-8 border-t border-border-dark pt-8">
+<p class="text-slate-500 text-sm mb-4">Is this extraction helpful?</p>
+<div class="flex gap-4 ml-4">
+<button class="text-slate-400 hover:text-green-400 transition-colors">
+<span class="material-symbols-outlined">thumb_up</span>
+</button>
+<button class="text-slate-400 hover:text-red-400 transition-colors">
+<span class="material-symbols-outlined">thumb_down</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

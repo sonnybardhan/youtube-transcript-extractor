@@ -1,69 +1,161 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouTube Transcript Extractor</title>
+  <title>YT Extractor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
+  <div class="app-container">
+    <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h2>History</h2>
-      </div>
-      <div class="sidebar-content">
-        <div id="history-list" class="history-list">
-          <p class="empty-state">No extractions yet</p>
+        <div class="logo-icon">
+          <span class="material-symbols-outlined">smart_display</span>
+        </div>
+        <div class="logo-text">
+          <h1>YT Extractor</h1>
+          <p>v1.0.0</p>
         </div>
       </div>
+
+      <div class="sidebar-content">
+        <button id="new-extraction-btn" class="new-extraction-btn">
+          <span class="material-symbols-outlined">add</span>
+          <span>New Extraction</span>
+        </button>
+
+        <div class="history-section">
+          <p class="history-label">HISTORY</p>
+          <div id="history-list" class="history-list">
+            <p class="empty-state">No extractions yet</p>
+          </div>
+        </div>
+      </div>
+
       <div class="sidebar-footer">
-        <button id="prompt-editor-btn" class="prompt-editor-btn">Edit Prompt</button>
+        <button class="sidebar-footer-btn" id="settings-btn">
+          <span class="material-symbols-outlined">settings</span>
+          <span>Settings</span>
+        </button>
       </div>
     </aside>
 
+    <!-- Main Content -->
     <main class="main-content">
-      <div class="main-content-inner">
-        <h1>YouTube Transcript Extractor</h1>
+      <!-- Input View -->
+      <div id="input-view" class="view">
+        <div class="content-wrapper">
+          <div class="page-header">
+            <h2>Batch Extraction</h2>
+            <p>Generate comprehensive summaries and extract structured data from multiple YouTube videos simultaneously.</p>
+          </div>
 
-        <div class="input-section">
-          <label for="urls">YouTube URL(s)</label>
-          <textarea
-            id="urls"
-            placeholder="Paste YouTube URL(s) here, one per line..."
-            rows="3"
-          ></textarea>
-
-          <div class="options-row">
-            <div class="llm-selector">
-              <label for="llm-provider">LLM Provider</label>
-              <select id="llm-provider">
-                <option value="">None (raw transcript)</option>
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
-              </select>
+          <div class="input-panel">
+            <div class="textarea-wrapper">
+              <textarea
+                id="urls"
+                placeholder="https://youtube.com/watch?v=...
+https://youtube.com/watch?v=...
+https://youtube.com/watch?v=..."
+                spellcheck="false"
+              ></textarea>
+              <div class="textarea-hint">
+                <span>One URL per line</span>
+              </div>
             </div>
 
-            <div class="llm-selector">
-              <label for="llm-model">Model</label>
-              <select id="llm-model" disabled>
-                <option value="">Select provider first</option>
-              </select>
-            </div>
+            <div class="config-toolbar">
+              <div class="config-dropdowns">
+                <div class="dropdown-group">
+                  <label>PROVIDER</label>
+                  <div class="select-wrapper">
+                    <select id="llm-provider">
+                      <option value="">None</option>
+                      <option value="openai">OpenAI</option>
+                      <option value="anthropic">Anthropic</option>
+                    </select>
+                    <span class="material-symbols-outlined">expand_more</span>
+                  </div>
+                </div>
 
-            <button id="extract-btn" class="extract-btn">Extract</button>
+                <div class="dropdown-group">
+                  <label>MODEL</label>
+                  <div class="select-wrapper">
+                    <select id="llm-model" disabled>
+                      <option value="">Select provider</option>
+                    </select>
+                    <span class="material-symbols-outlined">expand_more</span>
+                  </div>
+                </div>
+              </div>
+
+              <button id="edit-prompt-btn" class="edit-prompt-btn">
+                <span class="material-symbols-outlined">edit_note</span>
+                <span>Edit System Prompt</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="action-area">
+            <button id="extract-btn" class="extract-btn">
+              <span class="material-symbols-outlined">bolt</span>
+              <span>Extract Transcripts</span>
+            </button>
+
+            <div id="status-area" class="status-area">
+              <div class="empty-state-box">
+                <div class="empty-state-icon">
+                  <span class="material-symbols-outlined">auto_awesome</span>
+                </div>
+                <p class="empty-state-title">Ready to process</p>
+                <p class="empty-state-subtitle">Output will appear here in Markdown format</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="footer-status">
+            <p>API Status: <span id="api-status" class="status-ok">Checking...</span></p>
           </div>
         </div>
+      </div>
 
-        <div id="loading" class="loading hidden">
-          <div class="spinner"></div>
-          <span>Extracting transcript...</span>
+      <!-- Results View -->
+      <div id="results-view" class="view hidden">
+        <header class="results-header">
+          <div class="breadcrumb">
+            <a href="#" id="back-to-input">Home</a>
+            <span>/</span>
+            <span>Extractions</span>
+            <span>/</span>
+            <span id="current-title" class="current">Current Extraction</span>
+          </div>
+          <div class="header-actions">
+            <button id="copy-markdown-btn" class="header-btn secondary">
+              <span class="material-symbols-outlined">content_copy</span>
+              <span>Copy Markdown</span>
+            </button>
+          </div>
+        </header>
+
+        <div class="results-content">
+          <div id="output" class="output-container">
+            <!-- Rendered markdown will appear here -->
+          </div>
         </div>
+      </div>
 
-        <div id="error" class="error hidden"></div>
-
-        <div id="output" class="output">
-          <p class="empty-state">Enter a YouTube URL and click Extract to get started</p>
+      <!-- Loading Overlay -->
+      <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-content">
+          <div class="spinner"></div>
+          <p>Extracting transcripts...</p>
+          <p class="loading-subtitle">This may take a moment</p>
         </div>
       </div>
     </main>
@@ -73,18 +165,83 @@
   <div id="prompt-modal" class="modal-overlay hidden">
     <div class="modal">
       <div class="modal-header">
-        <h2>Edit LLM Prompt</h2>
-        <button class="modal-close" id="modal-close">&times;</button>
+        <div class="modal-title">
+          <h2>Edit System Prompt</h2>
+          <p>Configure the persona and rules for the LLM transcript summarizer.</p>
+        </div>
+        <button class="modal-close" id="modal-close">
+          <span class="material-symbols-outlined">close</span>
+        </button>
       </div>
+
       <div class="modal-body">
-        <label for="prompt-textarea">System Prompt</label>
-        <textarea id="prompt-textarea" placeholder="Enter your custom prompt..."></textarea>
+        <div class="variables-section">
+          <div class="variables-header">
+            <span class="material-symbols-outlined">code_blocks</span>
+            <h3>INJECTION VARIABLES</h3>
+          </div>
+          <div class="variable-chips">
+            <button class="variable-chip" data-var="{{transcript}}">
+              <span class="material-symbols-outlined">description</span>
+              <code>{{transcript}}</code>
+            </button>
+            <button class="variable-chip" data-var="{{video_title}}">
+              <span class="material-symbols-outlined">title</span>
+              <code>{{video_title}}</code>
+            </button>
+            <button class="variable-chip" data-var="{{channel_name}}">
+              <span class="material-symbols-outlined">smart_display</span>
+              <code>{{channel_name}}</code>
+            </button>
+          </div>
+          <p class="variables-hint">Click a variable to copy it to your clipboard.</p>
+        </div>
+
+        <div class="editor-container">
+          <div class="editor-tab-bar">
+            <div class="editor-tab active">
+              <span class="material-symbols-outlined">terminal</span>
+              <span>system_prompt.md</span>
+            </div>
+            <div class="editor-info">
+              <span>UTF-8</span>
+              <span>Markdown</span>
+            </div>
+          </div>
+          <div class="editor-wrapper">
+            <div class="line-numbers" id="line-numbers"></div>
+            <textarea id="prompt-textarea" spellcheck="false" placeholder="Write your system prompt here..."></textarea>
+          </div>
+        </div>
       </div>
+
       <div class="modal-footer">
-        <button class="modal-btn modal-btn-secondary" id="prompt-reset">Reset to Default</button>
-        <button class="modal-btn modal-btn-primary" id="prompt-save">Save</button>
+        <div class="keyboard-hints">
+          <div class="hint">
+            <kbd>&#8984;</kbd><span>+</span><kbd>Enter</kbd>
+            <span>to save</span>
+          </div>
+          <div class="divider"></div>
+          <div class="hint">
+            <kbd>Esc</kbd>
+            <span>to cancel</span>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="modal-btn secondary" id="prompt-cancel">Cancel</button>
+          <button class="modal-btn primary" id="prompt-save">
+            <span class="material-symbols-outlined">save</span>
+            <span>Save Prompt</span>
+          </button>
+        </div>
       </div>
     </div>
+  </div>
+
+  <!-- Error Toast -->
+  <div id="error-toast" class="toast hidden">
+    <span class="material-symbols-outlined">error</span>
+    <span id="error-message"></span>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
