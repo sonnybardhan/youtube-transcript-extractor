@@ -801,6 +801,16 @@ body {
   z-index: 50;
 }
 
+.loading-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-style: italic;
+}
+
 .output-container {
   max-width: 768px;
   margin: 0 auto;

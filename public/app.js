@@ -321,43 +321,111 @@ async function handleExtract() {
   setLoading(true);
 
   try {
-    const res = await fetch('/api/extract', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls, llm, customPrompt, compressionLevel })
-    });
+    // Phase 1: Fetch basic info for all URLs (parallel)
+    const basicPromises = urls.map(url =>
+      fetch('/api/extract/basic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      }).then(res => res.json()).then(data => ({ url, ...data }))
+    );
 
-    const data = await res.json();
+    const basicResults = await Promise.all(basicPromises);
 
-    if (data.errors && data.errors.length > 0) {
-      const errorMsgs = data.errors.map(e => `${e.url}: ${e.error}`).join('\n');
+    // Separate successful and failed extractions
+    const successfulBasic = basicResults.filter(r => r.success);
+    const failedBasic = basicResults.filter(r => !r.success);
+
+    if (failedBasic.length > 0) {
+      const errorMsgs = failedBasic.map(e => `${e.url}: ${e.error}`).join('\n');
       showToast(errorMsgs);
     }
 
-    if (data.results && data.results.length > 0) {
-      // Show the first result (or combined if multiple)
-      let markdown = data.results[0].markdown;
-      let title = data.results[0].title;
-      let filename = data.results[0].filename;
-      let noTranscriptWarning = data.results[0].noTranscriptWarning;
+    if (successfulBasic.length === 0) {
+      showToast('No results returned');
+      setLoading(false);
+      return;
+    }
 
-      if (data.results.length > 1) {
-        markdown = data.results.map(r => r.markdown).join('\n\n---\n\n');
-        title = `${data.results.length} Videos`;
-        filename = null;
-        // Check for any no transcript warnings
-        const warnings = data.results.filter(r => r.noTranscriptWarning);
-        if (warnings.length > 0) {
-          noTranscriptWarning = `${warnings.length} video(s) had no transcript available`;
+    // Show first result's transcript immediately in right pane
+    const firstBasic = successfulBasic[0].data;
+    const displayTitle = successfulBasic.length > 1
+      ? `${successfulBasic.length} Videos`
+      : firstBasic.title;
+
+    // Hide full-page loading, switch to results view with transcript visible
+    setLoading(false);
+    showResultsView(null, displayTitle);
+    updateInfoPane(firstBasic);
+
+    // Phase 2: Process with LLM (or show basic content)
+    if (llm) {
+      // Show loading spinner in center pane only (keeps transcript visible)
+      setLoading(true, true);
+
+      const llmResults = [];
+      const llmErrors = [];
+
+      // Process each URL with LLM sequentially
+      for (const result of successfulBasic) {
+        if (!result.data.hasTranscript) {
+          llmErrors.push({ url: result.url, error: 'No transcript available' });
+          continue;
+        }
+
+        try {
+          const llmRes = await fetch('/api/extract/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              basicInfo: result.data,
+              llm,
+              customPrompt,
+              compressionLevel
+            })
+          });
+
+          const llmData = await llmRes.json();
+
+          if (llmData.success) {
+            llmResults.push(llmData);
+          } else {
+            llmErrors.push({ url: result.url, error: llmData.error });
+          }
+        } catch (err) {
+          llmErrors.push({ url: result.url, error: err.message });
         }
       }
 
-      currentMarkdown = markdown;
-      currentFilename = filename;
-      showResultsView(markdown, title, noTranscriptWarning);
-      await loadHistory();
-    } else if (!data.errors || data.errors.length === 0) {
-      showToast('No results returned');
+      if (llmErrors.length > 0) {
+        const errorMsgs = llmErrors.map(e => `${e.url}: ${e.error}`).join('\n');
+        showToast(errorMsgs);
+      }
+
+      if (llmResults.length > 0) {
+        let markdown = llmResults[0].markdown;
+        let filename = llmResults[0].filename;
+
+        if (llmResults.length > 1) {
+          markdown = llmResults.map(r => r.markdown).join('\n\n---\n\n');
+          filename = null;
+        }
+
+        currentMarkdown = markdown;
+        currentFilename = filename;
+        renderMarkdown(markdown);
+        await loadHistory();
+      } else {
+        // All LLM processing failed - show basic content
+        renderBasicContent(successfulBasic.map(r => r.data));
+      }
+
+      setLoading(false, true);
+    } else {
+      // No LLM selected - show basic content immediately
+      renderBasicContent(successfulBasic.map(r => r.data));
+      currentMarkdown = '';
+      currentFilename = null;
     }
   } catch (err) {
     showToast(`Request failed: ${err.message}`);
@@ -430,7 +498,184 @@ function showResultsView(markdown, title, noTranscriptWarning = null) {
   elements.inputView.classList.add('hidden');
   elements.resultsView.classList.remove('hidden');
   elements.currentTitle.textContent = truncate(title, 40);
-  renderMarkdown(markdown, noTranscriptWarning);
+
+  // If markdown is null, show loading placeholder in output
+  if (markdown === null) {
+    elements.output.textContent = '';
+    const placeholder = document.createElement('div');
+    placeholder.className = 'loading-placeholder';
+    placeholder.textContent = 'Processing with LLM...';
+    elements.output.appendChild(placeholder);
+  } else {
+    renderMarkdown(markdown, noTranscriptWarning);
+  }
+}
+
+// Update the info pane directly with basic extraction data
+function updateInfoPane(basicInfo) {
+  // Update transcript tab
+  if (basicInfo.transcriptFormatted || basicInfo.transcript) {
+    const transcript = basicInfo.transcriptFormatted || basicInfo.transcript;
+    const paragraphs = transcript.split('\n\n').filter(p => p.trim());
+    elements.transcriptTab.textContent = '';
+    paragraphs.forEach(p => {
+      const para = document.createElement('p');
+      para.textContent = p.trim();
+      elements.transcriptTab.appendChild(para);
+    });
+    originalTranscript = transcript;
+  } else {
+    elements.transcriptTab.textContent = '';
+    const noContent = document.createElement('div');
+    noContent.className = 'no-content';
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined';
+    icon.textContent = 'subtitles_off';
+    const msg = document.createElement('p');
+    msg.textContent = 'No transcript available';
+    noContent.appendChild(icon);
+    noContent.appendChild(msg);
+    elements.transcriptTab.appendChild(noContent);
+    originalTranscript = '';
+  }
+
+  // Update metadata tab using DOM methods
+  elements.metadataTab.textContent = '';
+
+  const metadataFields = [
+    { key: 'channel', label: 'Channel' },
+    { key: 'publishDate', label: 'Published' },
+    { key: 'duration', label: 'Duration' },
+    { key: 'views', label: 'Views' },
+    { key: 'description', label: 'Description' }
+  ];
+
+  const items = metadataFields.filter(f => basicInfo[f.key]);
+
+  if (items.length > 0) {
+    const list = document.createElement('div');
+    list.className = 'metadata-list';
+    items.forEach(field => {
+      const item = document.createElement('div');
+      item.className = 'metadata-item';
+      const label = document.createElement('span');
+      label.className = 'label';
+      label.textContent = field.label;
+      const value = document.createElement('span');
+      value.className = 'value';
+      value.textContent = basicInfo[field.key];
+      item.appendChild(label);
+      item.appendChild(value);
+      list.appendChild(item);
+    });
+    elements.metadataTab.appendChild(list);
+    currentMetadata = basicInfo;
+  } else {
+    const noContent = document.createElement('div');
+    noContent.className = 'no-content';
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined';
+    icon.textContent = 'info';
+    const msg = document.createElement('p');
+    msg.textContent = 'No metadata available';
+    noContent.appendChild(icon);
+    noContent.appendChild(msg);
+    elements.metadataTab.appendChild(noContent);
+    currentMetadata = null;
+  }
+}
+
+// Render basic content when no LLM is selected
+function renderBasicContent(basicDataArray) {
+  elements.output.textContent = '';
+
+  for (const basicInfo of basicDataArray) {
+    // Title
+    const h1 = document.createElement('h1');
+    h1.textContent = basicInfo.title;
+    elements.output.appendChild(h1);
+
+    // Metadata section
+    const metaH2 = document.createElement('h2');
+    metaH2.textContent = 'Metadata';
+    elements.output.appendChild(metaH2);
+
+    const metaList = document.createElement('ul');
+    const metaFields = [
+      { key: 'channel', label: 'Channel' },
+      { key: 'publishDate', label: 'Published' },
+      { key: 'duration', label: 'Duration' },
+      { key: 'views', label: 'Views' }
+    ];
+    metaFields.forEach(field => {
+      if (basicInfo[field.key]) {
+        const li = document.createElement('li');
+        const strong = document.createElement('strong');
+        strong.textContent = field.label + ': ';
+        li.appendChild(strong);
+        li.appendChild(document.createTextNode(basicInfo[field.key]));
+        metaList.appendChild(li);
+      }
+    });
+    elements.output.appendChild(metaList);
+
+    // Description section
+    if (basicInfo.description) {
+      const descH2 = document.createElement('h2');
+      descH2.textContent = 'Description';
+      elements.output.appendChild(descH2);
+      const descP = document.createElement('p');
+      descP.textContent = basicInfo.description;
+      elements.output.appendChild(descP);
+    }
+
+    // Transcript section
+    const transcriptH2 = document.createElement('h2');
+    transcriptH2.textContent = 'Transcript';
+    elements.output.appendChild(transcriptH2);
+
+    if (basicInfo.hasTranscript) {
+      const transcript = basicInfo.transcriptFormatted || basicInfo.transcript || '';
+      const paragraphs = transcript.split('\n\n').filter(p => p.trim());
+      paragraphs.forEach(p => {
+        const para = document.createElement('p');
+        para.textContent = p.trim();
+        elements.output.appendChild(para);
+      });
+    } else {
+      const noTranscript = document.createElement('p');
+      const em = document.createElement('em');
+      em.textContent = 'No transcript available for this video.';
+      noTranscript.appendChild(em);
+      elements.output.appendChild(noTranscript);
+    }
+
+    // Add separator between multiple videos
+    if (basicDataArray.length > 1 && basicInfo !== basicDataArray[basicDataArray.length - 1]) {
+      elements.output.appendChild(document.createElement('hr'));
+    }
+  }
+
+  // Build simple markdown for copy functionality
+  currentMarkdown = basicDataArray.map(basicInfo => {
+    let md = `# ${basicInfo.title}\n\n`;
+    md += `## Metadata\n\n`;
+    if (basicInfo.channel) md += `- **Channel:** ${basicInfo.channel}\n`;
+    if (basicInfo.publishDate) md += `- **Published:** ${basicInfo.publishDate}\n`;
+    if (basicInfo.duration) md += `- **Duration:** ${basicInfo.duration}\n`;
+    if (basicInfo.views) md += `- **Views:** ${basicInfo.views}\n`;
+    md += '\n';
+    if (basicInfo.description) {
+      md += `## Description\n\n${basicInfo.description}\n\n`;
+    }
+    md += `## Transcript\n\n`;
+    if (basicInfo.hasTranscript) {
+      md += basicInfo.transcriptFormatted || basicInfo.transcript || '';
+    } else {
+      md += '*No transcript available for this video.*';
+    }
+    return md;
+  }).join('\n\n---\n\n');
 }
 
 function renderMarkdown(content, noTranscriptWarning = null) {
