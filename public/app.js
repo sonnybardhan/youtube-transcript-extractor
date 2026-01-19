@@ -21,6 +21,8 @@ let defaultPrompt = '';
 let currentMarkdown = '';
 let originalTranscript = '';
 let currentMetadata = null;
+let currentFilename = null;
+let compressionLevel = 50;
 
 // ========================================
 // DOM Elements
@@ -34,6 +36,8 @@ const elements = {
   urlsInput: document.getElementById('urls'),
   providerSelect: document.getElementById('llm-provider'),
   modelSelect: document.getElementById('llm-model'),
+  compressionSlider: document.getElementById('compression-slider'),
+  compressionValue: document.getElementById('compression-value'),
   extractBtn: document.getElementById('extract-btn'),
   editPromptBtn: document.getElementById('edit-prompt-btn'),
   newExtractionBtn: document.getElementById('new-extraction-btn'),
@@ -46,6 +50,7 @@ const elements = {
   currentTitle: document.getElementById('current-title'),
   backToInput: document.getElementById('back-to-input'),
   copyMarkdownBtn: document.getElementById('copy-markdown-btn'),
+  rerunLlmBtn: document.getElementById('rerun-llm-btn'),
 
   // Info Pane
   infoPane: document.getElementById('info-pane'),
@@ -59,6 +64,7 @@ const elements = {
 
   // Loading & Status
   loadingOverlay: document.getElementById('loading-overlay'),
+  resultsLoading: document.getElementById('results-loading'),
   apiStatus: document.getElementById('api-status'),
 
   // Modal
@@ -92,6 +98,9 @@ function setupEventListeners() {
   // Provider change
   elements.providerSelect.addEventListener('change', handleProviderChange);
 
+  // Compression slider
+  elements.compressionSlider.addEventListener('input', handleCompressionChange);
+
   // Extract button
   elements.extractBtn.addEventListener('click', handleExtract);
 
@@ -106,6 +115,9 @@ function setupEventListeners() {
 
   // Copy markdown
   elements.copyMarkdownBtn.addEventListener('click', handleCopyMarkdown);
+
+  // Rerun LLM button
+  elements.rerunLlmBtn.addEventListener('click', handleRerunLLM);
 
   // Info pane tabs and toggle
   elements.infoPaneTabs.forEach(tab => {
@@ -238,6 +250,7 @@ async function loadHistoryItem(filename) {
 
     const data = await res.json();
     currentMarkdown = data.content;
+    currentFilename = filename;
 
     // Extract title from markdown
     const titleMatch = data.content.match(/^#\s+(.+)$/m);
@@ -288,6 +301,11 @@ function handleProviderChange() {
   ).join('');
 }
 
+function handleCompressionChange() {
+  compressionLevel = parseInt(elements.compressionSlider.value, 10);
+  elements.compressionValue.textContent = `${compressionLevel}%`;
+}
+
 async function handleExtract() {
   const urlText = elements.urlsInput.value.trim();
   if (!urlText) {
@@ -306,7 +324,7 @@ async function handleExtract() {
     const res = await fetch('/api/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls, llm, customPrompt })
+      body: JSON.stringify({ urls, llm, customPrompt, compressionLevel })
     });
 
     const data = await res.json();
@@ -320,14 +338,23 @@ async function handleExtract() {
       // Show the first result (or combined if multiple)
       let markdown = data.results[0].markdown;
       let title = data.results[0].title;
+      let filename = data.results[0].filename;
+      let noTranscriptWarning = data.results[0].noTranscriptWarning;
 
       if (data.results.length > 1) {
         markdown = data.results.map(r => r.markdown).join('\n\n---\n\n');
         title = `${data.results.length} Videos`;
+        filename = null;
+        // Check for any no transcript warnings
+        const warnings = data.results.filter(r => r.noTranscriptWarning);
+        if (warnings.length > 0) {
+          noTranscriptWarning = `${warnings.length} video(s) had no transcript available`;
+        }
       }
 
       currentMarkdown = markdown;
-      showResultsView(markdown, title);
+      currentFilename = filename;
+      showResultsView(markdown, title, noTranscriptWarning);
       await loadHistory();
     } else if (!data.errors || data.errors.length === 0) {
       showToast('No results returned');
@@ -336,6 +363,53 @@ async function handleExtract() {
     showToast(`Request failed: ${err.message}`);
   } finally {
     setLoading(false);
+  }
+}
+
+async function handleRerunLLM() {
+  if (!currentFilename) {
+    showToast('Cannot rerun: no file selected');
+    return;
+  }
+
+  const provider = elements.providerSelect.value;
+  const model = elements.modelSelect.value;
+
+  if (!provider || !model) {
+    showToast('Please select an LLM provider and model first');
+    return;
+  }
+
+  // Use results-only loading to keep transcript visible
+  setLoading(true, true);
+
+  try {
+    const res = await fetch('/api/reprocess', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: currentFilename,
+        llm: { provider, model },
+        customPrompt,
+        compressionLevel
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Reprocessing failed');
+    }
+
+    currentMarkdown = data.markdown;
+    currentFilename = data.filename;
+    showResultsView(data.markdown, data.title);
+    await loadHistory();
+    showToast('Successfully reprocessed with LLM', 'success');
+  } catch (err) {
+    showToast(err.message);
+  } finally {
+    setLoading(false, true);
   }
 }
 
@@ -352,14 +426,14 @@ function showInputView() {
   });
 }
 
-function showResultsView(markdown, title) {
+function showResultsView(markdown, title, noTranscriptWarning = null) {
   elements.inputView.classList.add('hidden');
   elements.resultsView.classList.remove('hidden');
   elements.currentTitle.textContent = truncate(title, 40);
-  renderMarkdown(markdown);
+  renderMarkdown(markdown, noTranscriptWarning);
 }
 
-function renderMarkdown(content) {
+function renderMarkdown(content, noTranscriptWarning = null) {
   // Extract original transcript from <details> section
   let detailsMatch = content.match(/<details>\s*<summary>Original Transcript<\/summary>([\s\S]*?)<\/details>/i);
 
@@ -391,8 +465,8 @@ function renderMarkdown(content) {
   content = content.replace(/## Action Items & Takeaways\n\n(?=## |$)/g, '## Action Items & Takeaways\n\nn/a\n\n');
 
   // Remove other truly empty sections (but not Key Insights or Action Items)
-  content = content.replace(/^## (?!Transcript|Key Insights|Action Items)[^\n]+\n+(?=## |$)/gm, '');
-  content = content.replace(/^(## (?!Transcript|Key Insights|Action Items)[^\n]+)\n+---\n*(?=## |$)/gm, '');
+  content = content.replace(/^## (?!Transcript|Summary|Key Insights|Action Items)[^\n]+\n+(?=## |$)/gm, '');
+  content = content.replace(/^(## (?!Transcript|Summary|Key Insights|Action Items)[^\n]+)\n+---\n*(?=## |$)/gm, '');
 
   // Parse markdown
   let html = marked.parse(content);
@@ -403,7 +477,18 @@ function renderMarkdown(content) {
   // Make sections collapsible
   html = makeCollapsibleSections(html);
 
-  elements.output.innerHTML = html;
+  // Add no transcript warning if present
+  let warningHtml = '';
+  if (noTranscriptWarning) {
+    warningHtml = `
+      <div class="no-transcript-warning">
+        <span class="material-symbols-outlined">warning</span>
+        <p>${escapeHtml(noTranscriptWarning)}</p>
+      </div>
+    `;
+  }
+
+  elements.output.innerHTML = warningHtml + html;
 
   // Set up collapsible section click handlers
   elements.output.querySelectorAll('.collapsible-section-header').forEach(header => {
@@ -443,7 +528,7 @@ function makeCollapsibleSections(html) {
   let currentContent = [];
 
   // Sections that should NOT be collapsible (parent sections or key info sections)
-  const nonCollapsibleSections = ['tldr', 'metadata', 'description', 'transcript'];
+  const nonCollapsibleSections = ['tldr', 'metadata', 'description', 'transcript', 'summary'];
 
   function hasContent(contentArray) {
     const combined = contentArray.join('').trim();
@@ -622,9 +707,16 @@ function loadSavedTheme() {
   }
 }
 
-function setLoading(isLoading) {
-  elements.loadingOverlay.classList.toggle('hidden', !isLoading);
+function setLoading(isLoading, resultsOnly = false) {
+  if (resultsOnly) {
+    // Only show loading in the results main area (keeps transcript visible)
+    elements.resultsLoading.classList.toggle('hidden', !isLoading);
+  } else {
+    // Full-page loading overlay
+    elements.loadingOverlay.classList.toggle('hidden', !isLoading);
+  }
   elements.extractBtn.disabled = isLoading;
+  elements.rerunLlmBtn.disabled = isLoading;
 }
 
 // ========================================
