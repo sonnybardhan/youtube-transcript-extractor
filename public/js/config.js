@@ -1,0 +1,21 @@
+/**
+ * LLM provider and model configuration
+ */
+export const LLM_MODELS = {
+  openai: [
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'gpt-4o', label: 'GPT-4o' }
+  ],
+  anthropic: [
+    { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
+    { value: 'claude-haiku-4-20250514', label: 'Claude Haiku 4' }
+  ],
+  openrouter: [
+    { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
+    { value: 'anthropic/claude-opus-4.5', label: 'Claude Opus 4.5' },
+    { value: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5' },
+    { value: 'openai/gpt-5.2', label: 'GPT-5.2' },
+    { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro' },
+    { value: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2' }
+  ]
+};

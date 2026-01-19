@@ -11,7 +11,7 @@
 - [x] Disable the Rerun LLM button while the LLM is generating content (added disabled styling)
 - [x] Fix loading overlay cleanup in finally block
 - [x] the loading spinner should not be scrollable (currently if i press the re-run LLM button, i can scroll down to see the previous generated text. it looks buggy.)
-- [ ] Clean up the JavaScript file, make it modular, break it up into separate files.
+- [x] Clean up the JavaScript file, make it modular, break it up into separate files.
 
 ## Later
 

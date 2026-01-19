@@ -21,11 +21,25 @@ node youtube-extractor.js <URL> [output.md]  # CLI
 ## Architecture
 
 ```
-server.js           # Express API
+server.js            # Express API
 youtube-extractor.js # CLI tool
-lib/extractor.js    # Core logic (extract, extractBasic, processWithLLMAndFormat)
-public/             # Web UI (index.html, app.js, style.css)
-temp/               # Output files (.md, .info.json, .srt)
+lib/extractor.js     # Core logic (extract, extractBasic, processWithLLMAndFormat)
+public/              # Web UI
+  index.html         # Main HTML
+  style.css          # Styles
+  js/                # ES modules
+    app.js           # Entry point, event listeners
+    config.js        # LLM model configuration
+    state.js         # Application state management
+    elements.js      # DOM element references
+    api.js           # API calls (config, prompt)
+    history.js       # History list management
+    extraction.js    # Extraction and LLM processing
+    views.js         # View rendering, info pane
+    markdown.js      # Markdown parsing, collapsible sections
+    ui.js            # Theme, loading, modal, toast
+    utils.js         # Utility functions
+temp/                # Output files (.md, .info.json, .srt)
 ```
 
 ## Key Functions (`lib/extractor.js`)
