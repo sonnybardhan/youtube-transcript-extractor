@@ -39,6 +39,9 @@
       </div>
 
       <div class="sidebar-footer">
+        <button class="sidebar-footer-btn" id="theme-toggle-btn" title="Toggle light/dark mode">
+          <span class="material-symbols-outlined">light_mode</span>
+        </button>
         <button class="sidebar-footer-btn" id="settings-btn">
           <span class="material-symbols-outlined">settings</span>
           <span>Settings</span>
@@ -144,9 +147,42 @@ https://youtube.com/watch?v=..."
         </header>
 
         <div class="results-content">
-          <div id="output" class="output-container">
-            <!-- Rendered markdown will appear here -->
+          <div class="results-main">
+            <div id="output" class="output-container">
+              <!-- Rendered markdown will appear here -->
+            </div>
           </div>
+          <aside class="info-pane" id="info-pane">
+            <div class="info-pane-header">
+              <div class="info-pane-tabs">
+                <button class="info-tab active" data-tab="transcript">
+                  <span class="material-symbols-outlined">description</span>
+                  <span>Transcript</span>
+                </button>
+                <button class="info-tab" data-tab="metadata">
+                  <span class="material-symbols-outlined">info</span>
+                  <span>Metadata</span>
+                </button>
+              </div>
+              <button class="info-pane-toggle" id="toggle-info-pane" title="Collapse">
+                <span class="material-symbols-outlined">chevron_right</span>
+              </button>
+            </div>
+            <div class="info-pane-content">
+              <div class="info-tab-content active" id="transcript-tab">
+                <div class="no-content">
+                  <span class="material-symbols-outlined">subtitles_off</span>
+                  <p>No transcript available</p>
+                </div>
+              </div>
+              <div class="info-tab-content" id="metadata-tab">
+                <div class="no-content">
+                  <span class="material-symbols-outlined">info</span>
+                  <p>No metadata available</p>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
 
