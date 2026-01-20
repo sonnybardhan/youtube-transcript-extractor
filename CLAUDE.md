@@ -35,7 +35,7 @@ public/              # Web UI
     api.js           # API calls (config, prompt)
     history.js       # History list management
     extraction.js    # Extraction and LLM processing
-    views.js         # View rendering, info pane
+    views.js         # View rendering, info pane, streaming markdown parsing
     markdown.js      # Markdown parsing, collapsible sections
     ui.js            # Theme, loading, modal, toast
     utils.js         # Utility functions

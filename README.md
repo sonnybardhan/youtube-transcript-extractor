@@ -6,6 +6,7 @@ A local web app and CLI tool that extracts YouTube video metadata and transcript
 
 - **Video Extraction** - metadata and English subtitles via yt-dlp
 - **Progressive Loading** - transcript displays immediately while LLM processes
+- **Streaming Markdown** - inline formatting (bold, italic, code, links) renders during LLM streaming
 - **LLM Processing** - TLDR, Key Insights, Action Items, sectioned summaries
 - **Detail Level** - adjustable compression (0-100%) for LLM output
 - **Rerun LLM** - reprocess any extraction with different settings (creates new file)
