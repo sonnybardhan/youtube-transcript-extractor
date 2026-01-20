@@ -154,6 +154,7 @@ export function switchInfoTab(tabName) {
 
   elements.transcriptTab.classList.toggle('active', tabName === 'transcript');
   elements.metadataTab.classList.toggle('active', tabName === 'metadata');
+  elements.signalTab.classList.toggle('active', tabName === 'signal');
 }
 
 export function toggleInfoPane() {

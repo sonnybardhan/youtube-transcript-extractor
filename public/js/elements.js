@@ -40,6 +40,7 @@ export function initElements() {
     infoPaneTabs: document.querySelectorAll('.info-tab'),
     transcriptTab: document.getElementById('transcript-tab'),
     metadataTab: document.getElementById('metadata-tab'),
+    signalTab: document.getElementById('signal-tab'),
     toggleInfoPane: document.getElementById('toggle-info-pane'),
 
     // Theme

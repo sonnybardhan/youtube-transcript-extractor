@@ -224,6 +224,18 @@ export function renderStreamingSections(sections, title) {
     // Show loading placeholder
     ensureSection(container, 'summary', () => createLoadingSection('Summary'), 'loading');
   }
+
+  // Update Signal pane with knowledge graph metadata
+  const hasSignalData = sections.concepts || sections.entities ||
+                        sections.category || sections.suggestedTags;
+  if (hasSignalData) {
+    updateSignalPane({
+      concepts: sections.concepts,
+      entities: sections.entities,
+      category: sections.category,
+      suggestedTags: sections.suggestedTags
+    });
+  }
 }
 
 /**
@@ -615,4 +627,110 @@ export function renderBasicContent(basicDataArray) {
   }).join('\n\n---\n\n');
 
   setState('currentMarkdown', markdown);
+}
+
+/**
+ * Update the Signal pane with knowledge graph metadata
+ * @param {object} metadata - Object containing concepts, entities, category, suggestedTags
+ */
+export function updateSignalPane(metadata) {
+  const elements = getElements();
+  elements.signalTab.textContent = '';
+
+  const hasData = metadata?.concepts?.length || metadata?.entities?.length ||
+                  metadata?.category || metadata?.suggestedTags?.length;
+
+  if (!hasData) {
+    const noContent = document.createElement('div');
+    noContent.className = 'no-content';
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined';
+    icon.textContent = 'sensors';
+    const msg = document.createElement('p');
+    msg.textContent = 'No signal data available';
+    noContent.appendChild(icon);
+    noContent.appendChild(msg);
+    elements.signalTab.appendChild(noContent);
+    return;
+  }
+
+  const container = document.createElement('div');
+  container.className = 'signal-content';
+
+  // Category badge
+  if (metadata.category) {
+    const section = document.createElement('div');
+    section.className = 'signal-section';
+    const label = document.createElement('span');
+    label.className = 'signal-label';
+    label.textContent = 'Category';
+    section.appendChild(label);
+    const badge = document.createElement('span');
+    badge.className = 'category-badge';
+    badge.textContent = metadata.category;
+    section.appendChild(badge);
+    container.appendChild(section);
+  }
+
+  // Concepts chips
+  if (metadata.concepts?.length) {
+    const section = document.createElement('div');
+    section.className = 'signal-section';
+    const label = document.createElement('span');
+    label.className = 'signal-label';
+    label.textContent = 'Concepts';
+    section.appendChild(label);
+    const chipContainer = document.createElement('div');
+    chipContainer.className = 'chip-container';
+    metadata.concepts.forEach(concept => {
+      const chip = document.createElement('span');
+      chip.className = 'chip concept-chip';
+      chip.textContent = concept;
+      chipContainer.appendChild(chip);
+    });
+    section.appendChild(chipContainer);
+    container.appendChild(section);
+  }
+
+  // Entities chips
+  if (metadata.entities?.length) {
+    const section = document.createElement('div');
+    section.className = 'signal-section';
+    const label = document.createElement('span');
+    label.className = 'signal-label';
+    label.textContent = 'Entities';
+    section.appendChild(label);
+    const chipContainer = document.createElement('div');
+    chipContainer.className = 'chip-container';
+    metadata.entities.forEach(entity => {
+      const chip = document.createElement('span');
+      chip.className = 'chip entity-chip';
+      chip.textContent = entity;
+      chipContainer.appendChild(chip);
+    });
+    section.appendChild(chipContainer);
+    container.appendChild(section);
+  }
+
+  // Tags chips
+  if (metadata.suggestedTags?.length) {
+    const section = document.createElement('div');
+    section.className = 'signal-section';
+    const label = document.createElement('span');
+    label.className = 'signal-label';
+    label.textContent = 'Tags';
+    section.appendChild(label);
+    const chipContainer = document.createElement('div');
+    chipContainer.className = 'chip-container';
+    metadata.suggestedTags.forEach(tag => {
+      const chip = document.createElement('span');
+      chip.className = 'chip tag-chip';
+      chip.textContent = tag;
+      chipContainer.appendChild(chip);
+    });
+    section.appendChild(chipContainer);
+    container.appendChild(section);
+  }
+
+  elements.signalTab.appendChild(container);
 }

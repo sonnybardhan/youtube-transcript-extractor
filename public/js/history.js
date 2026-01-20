@@ -5,7 +5,7 @@ import { getElements } from './elements.js';
 import { setState } from './state.js';
 import { escapeHtml, formatDate } from './utils.js';
 import { showToast } from './ui.js';
-import { showResultsView } from './views.js';
+import { showResultsView, updateSignalPane } from './views.js';
 
 // Selection state
 let selectedItems = new Set();
@@ -252,6 +252,45 @@ export function renderHistory(files, isFiltered = false) {
   });
 }
 
+/**
+ * Parse Knowledge Graph section from markdown content
+ * @param {string} markdown - The markdown content
+ * @returns {object|null} - Parsed metadata or null if not found
+ */
+function parseKnowledgeGraph(markdown) {
+  const kgMatch = markdown.match(/## Knowledge Graph\n\n([\s\S]*?)(?=\n## |$)/);
+  if (!kgMatch) return null;
+
+  const kgSection = kgMatch[1];
+  const metadata = {};
+
+  // Parse category
+  const categoryMatch = kgSection.match(/\*\*Category:\*\*\s*(.+)/);
+  if (categoryMatch) {
+    metadata.category = categoryMatch[1].trim();
+  }
+
+  // Parse concepts (comma-separated)
+  const conceptsMatch = kgSection.match(/\*\*Concepts:\*\*\s*(.+)/);
+  if (conceptsMatch) {
+    metadata.concepts = conceptsMatch[1].split(',').map(c => c.trim()).filter(c => c);
+  }
+
+  // Parse entities (comma-separated)
+  const entitiesMatch = kgSection.match(/\*\*Entities:\*\*\s*(.+)/);
+  if (entitiesMatch) {
+    metadata.entities = entitiesMatch[1].split(',').map(e => e.trim()).filter(e => e);
+  }
+
+  // Parse tags (comma-separated)
+  const tagsMatch = kgSection.match(/\*\*Tags:\*\*\s*(.+)/);
+  if (tagsMatch) {
+    metadata.suggestedTags = tagsMatch[1].split(',').map(t => t.trim()).filter(t => t);
+  }
+
+  return metadata;
+}
+
 export async function loadHistoryItem(filename) {
   const elements = getElements();
 
@@ -269,6 +308,10 @@ export async function loadHistoryItem(filename) {
     const title = titleMatch ? titleMatch[1] : filename.replace('.md', '');
 
     showResultsView(data.content, title);
+
+    // Parse and display Knowledge Graph data in Signal tab
+    const knowledgeGraph = parseKnowledgeGraph(data.content);
+    updateSignalPane(knowledgeGraph);
 
     // Update active state
     elements.historyList.querySelectorAll('.history-item').forEach(item => {

@@ -136,6 +136,63 @@ export function parsePartialJSON(text) {
     }
   }
 
+  // Try to extract concepts array
+  const conceptsMatch = text.match(/"concepts"\s*:\s*\[([\s\S]*?)\]/);
+  if (conceptsMatch) {
+    try {
+      const conceptsArray = JSON.parse('[' + conceptsMatch[1] + ']');
+      if (Array.isArray(conceptsArray) && conceptsArray.length > 0) {
+        sections.concepts = conceptsArray;
+      }
+    } catch {
+      const partialConcepts = extractPartialArray(conceptsMatch[1]);
+      if (partialConcepts.length > 0) {
+        sections.concepts = partialConcepts;
+        sections.conceptsPartial = true;
+      }
+    }
+  }
+
+  // Try to extract entities array
+  const entitiesMatch = text.match(/"entities"\s*:\s*\[([\s\S]*?)\]/);
+  if (entitiesMatch) {
+    try {
+      const entitiesArray = JSON.parse('[' + entitiesMatch[1] + ']');
+      if (Array.isArray(entitiesArray) && entitiesArray.length > 0) {
+        sections.entities = entitiesArray;
+      }
+    } catch {
+      const partialEntities = extractPartialArray(entitiesMatch[1]);
+      if (partialEntities.length > 0) {
+        sections.entities = partialEntities;
+        sections.entitiesPartial = true;
+      }
+    }
+  }
+
+  // Try to extract category (single string)
+  const categoryMatch = text.match(/"category"\s*:\s*"([^"]+)"/);
+  if (categoryMatch) {
+    sections.category = categoryMatch[1];
+  }
+
+  // Try to extract suggestedTags array
+  const tagsMatch = text.match(/"suggestedTags"\s*:\s*\[([\s\S]*?)\]/);
+  if (tagsMatch) {
+    try {
+      const tagsArray = JSON.parse('[' + tagsMatch[1] + ']');
+      if (Array.isArray(tagsArray) && tagsArray.length > 0) {
+        sections.suggestedTags = tagsArray;
+      }
+    } catch {
+      const partialTags = extractPartialArray(tagsMatch[1]);
+      if (partialTags.length > 0) {
+        sections.suggestedTags = partialTags;
+        sections.suggestedTagsPartial = true;
+      }
+    }
+  }
+
   // Try to extract summary (or transcript for backwards compatibility)
   const summaryMatch = text.match(/"(?:summary|transcript)"\s*:\s*"((?:[^"\\]|\\.)*)"/);
   if (summaryMatch) {

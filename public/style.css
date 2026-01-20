@@ -1907,6 +1907,69 @@ body {
 }
 
 /* ========================================
+   Signal Tab - Knowledge Graph
+   ======================================== */
+.signal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.signal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.signal-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}
+
+.category-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: rgba(18, 108, 135, 0.2);
+  color: var(--primary);
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: capitalize;
+  width: fit-content;
+}
+
+.chip-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.concept-chip {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+}
+
+.entity-chip {
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+}
+
+.tag-chip {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fcd34d;
+}
+
+/* ========================================
    Utility Classes
    ======================================== */
 .hidden {
@@ -2265,4 +2328,24 @@ html.light .streaming-section-partial h2 {
 html.light .inline-spinner {
   border-color: var(--border-dark);
   border-top-color: var(--primary);
+}
+
+html.light .category-badge {
+  background: rgba(13, 126, 168, 0.15);
+  color: var(--primary);
+}
+
+html.light .concept-chip {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+
+html.light .entity-chip {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+html.light .tag-chip {
+  background: rgba(251, 191, 36, 0.15);
+  color: #b45309;
 }

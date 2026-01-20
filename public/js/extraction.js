@@ -5,7 +5,7 @@ import { LLM_MODELS } from './config.js';
 import { getElements } from './elements.js';
 import { getState, setState } from './state.js';
 import { setLoading, showToast } from './ui.js';
-import { showResultsView, showInputView, updateInfoPane, renderBasicContent, renderStreamingSections } from './views.js';
+import { showResultsView, showInputView, updateInfoPane, renderBasicContent, renderStreamingSections, updateSignalPane } from './views.js';
 import { renderMarkdown } from './markdown.js';
 import { loadHistory } from './history.js';
 import { createStreamingRequest, parsePartialJSON, throttledRender, flushRender, resetThrottleState } from './streaming.js';
@@ -132,6 +132,7 @@ export async function handleExtract() {
     setLoading(false);
     showResultsView(null, displayTitle);
     updateInfoPane(firstBasic);
+    updateSignalPane(null); // Clear previous signal data
 
     // Phase 2: Process with LLM (or show basic content)
     if (llm) {
@@ -297,6 +298,7 @@ export async function handleRerunLLM() {
 
   // Show loading skeleton view (like a fresh extraction)
   showResultsView(null, currentTitle);
+  updateSignalPane(null); // Clear previous signal data
 
   let accumulated = '';
   let lastSections = {};
