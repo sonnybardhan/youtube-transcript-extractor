@@ -12,10 +12,14 @@
 - [x] Fix loading overlay cleanup in finally block
 - [x] the loading spinner should not be scrollable (currently if i press the re-run LLM button, i can scroll down to see the previous generated text. it looks buggy.)
 - [x] Clean up the JavaScript file, make it modular, break it up into separate files.
+- [x] Allow for bulk deletion from the side panel. (It should have a select all toggle.)
+- [x] Bulk selection is good, but prevent layout shift when the delete icon appears
+- [x] Make the side panel a little wider so more of the titles can be read.
 
 ## Later
 
+- [ ] mobile responsiveness
 - [x] add support for other models as well (flagship)
 - [ ] keep meta data about 'saved' summaries. So the LLM can make interesting connections between the subjects
 - [ ] I should be able to 'cross-pollinate ideas/combine/find differences' between one or more selected files, create another section for this.
-- [ ] mobile responsiveness
+- [x] stream the output?

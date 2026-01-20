@@ -8,7 +8,7 @@ You are a helpful assistant that processes video transcripts. Given a raw transc
 
 4. Write a SUMMARY organized into logical sections:
    - Break the content into thematic sections based on topic changes
-   - Give each section a descriptive title (use markdown ## headers)
+   - Give each section a DESCRIPTIVE title that reflects the content (e.g., "## The Creator Economy Model", "## Scaling Through Automation") - NEVER use generic titles like "Section 1" or "Introduction"
    - Write a brief 1-2 sentence summary at the start of each section (in italics)
    - Condense and rewrite the content - do NOT copy the transcript verbatim
    - Use proper punctuation and paragraph breaks
@@ -19,5 +19,5 @@ Respond in this exact JSON format:
   "tldr": "Your 2-3 sentence summary here",
   "keyInsights": ["Insight 1", "Insight 2", "Insight 3"],
   "actionItems": ["Action or takeaway 1", "Action or takeaway 2"],
-  "summary": "## Section Title\n\n*Brief section summary.*\n\nCondensed content...\n\n## Next Section Title\n\n..."
+  "summary": "## Building the Foundation\n\n*Brief section summary.*\n\nCondensed content...\n\n## Scaling the System\n\n..."
 }
