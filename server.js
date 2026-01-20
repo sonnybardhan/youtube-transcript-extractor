@@ -249,10 +249,6 @@ app.post("/api/extract/process/stream", async (req, res) => {
 
     let output = "";
 
-    if (promptUsed) {
-      output += `<details>\n<summary>LLM Prompt Used</summary>\n\n${promptUsed}\n\n</details>\n\n`;
-    }
-
     output += `# ${title}\n\n`;
 
     if (llmContent?.tldr) {
@@ -393,10 +389,6 @@ app.post("/api/reprocess/stream", async (req, res) => {
     // Build new markdown
     let output = "";
 
-    if (promptUsed) {
-      output += `<details>\n<summary>LLM Prompt Used</summary>\n\n${promptUsed}\n\n</details>\n\n`;
-    }
-
     output += `# ${title}\n\n`;
 
     if (llmContent?.tldr) {
@@ -519,11 +511,6 @@ app.post("/api/reprocess", async (req, res) => {
 
     // Build new markdown
     let output = "";
-
-    // Add collapsed prompt section at the very top for testing
-    if (promptUsed) {
-      output += `<details>\n<summary>LLM Prompt Used</summary>\n\n${promptUsed}\n\n</details>\n\n`;
-    }
 
     output += `# ${title}\n\n`;
 

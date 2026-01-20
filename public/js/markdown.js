@@ -8,6 +8,9 @@ import { escapeHtml } from './utils.js';
 export function renderMarkdown(content, noTranscriptWarning = null) {
   const elements = getElements();
 
+  // Remove LLM Prompt Used section (legacy, no longer generated)
+  content = content.replace(/<details>\s*<summary>LLM Prompt Used<\/summary>[\s\S]*?<\/details>\s*/i, '');
+
   // Extract original transcript from <details> section
   const detailsMatch = content.match(/<details>\s*<summary>Original Transcript<\/summary>([\s\S]*?)<\/details>/i);
 
