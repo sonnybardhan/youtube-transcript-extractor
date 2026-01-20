@@ -38,7 +38,16 @@
           </button>
 
           <div class="history-section">
-            <p class="history-label">HISTORY</p>
+            <div class="history-header">
+              <div class="history-header-left">
+                <input type="checkbox" id="select-all-history" class="history-checkbox" title="Select all">
+                <span class="history-label">HISTORY</span>
+              </div>
+              <button id="bulk-delete-btn" class="bulk-delete-btn hidden" title="Delete selected">
+                <span class="material-symbols-outlined">delete</span>
+                <span id="bulk-delete-count"></span>
+              </button>
+            </div>
             <div id="history-list" class="history-list">
               <p class="empty-state">No extractions yet</p>
             </div>

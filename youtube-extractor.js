@@ -8,6 +8,14 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const tempDir = join(__dirname, 'temp');
 
+// Helper to get the correct token limit parameter for OpenAI models
+function getOpenAITokenParam(model, tokens = 4096) {
+  if (model.startsWith("gpt-5") || model.startsWith("gpt-4.1")) {
+    return { max_completion_tokens: tokens };
+  }
+  return { max_tokens: tokens };
+}
+
 // Load .env file if present
 const envPath = join(__dirname, '.env');
 if (existsSync(envPath)) {
@@ -83,6 +91,7 @@ async function processWithLLM(transcript, title) {
 
   console.error('Processing with LLM...');
 
+  const model = 'gpt-4o-mini';
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -90,7 +99,7 @@ async function processWithLLM(transcript, title) {
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model,
       messages: [
         {
           role: 'system',
@@ -106,7 +115,7 @@ Respond in this exact JSON format:
           content: `Video title: ${title}\n\nRaw transcript:\n${transcript}`
         }
       ],
-      max_tokens: 4096,
+      ...getOpenAITokenParam(model),
       response_format: { type: "json_object" }
     })
   });

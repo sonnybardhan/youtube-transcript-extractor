@@ -5,7 +5,7 @@
  */
 import { initElements, getElements } from './elements.js';
 import { loadConfig, loadPrompt } from './api.js';
-import { loadHistory } from './history.js';
+import { loadHistory, initHistorySelection } from './history.js';
 import { handleExtract, handleRerunLLM, handleProviderChange, handleCompressionChange } from './extraction.js';
 import { showInputView } from './views.js';
 import {
@@ -41,6 +41,9 @@ async function init() {
 
   // Set up all event listeners
   setupEventListeners();
+
+  // Initialize history selection controls
+  initHistorySelection();
 
   // Initialize line numbers in prompt editor
   updateLineNumbers();

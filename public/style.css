@@ -193,13 +193,63 @@ body {
   flex: 1;
 }
 
+/* History header with select-all */
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.history-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+}
+
 .history-label {
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 8px 12px;
+}
+
+/* Bulk delete button */
+.bulk-delete-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--error);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  transition: all 0.15s ease;
+}
+
+.bulk-delete-btn:hover {
+  background: #dc2626;
+}
+
+.bulk-delete-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.bulk-delete-btn.hidden {
+  display: none;
 }
 
 .history-list {
@@ -231,6 +281,10 @@ body {
 .history-item.active {
   background: rgba(18, 108, 135, 0.1);
   border-left-color: var(--primary);
+}
+
+.history-item.selected {
+  background: rgba(18, 108, 135, 0.15);
 }
 
 .history-item-content {
@@ -1873,6 +1927,10 @@ html.light .history-item:hover {
 
 html.light .history-item.active {
   background: rgba(13, 126, 168, 0.1);
+}
+
+html.light .history-item.selected {
+  background: rgba(13, 126, 168, 0.12);
 }
 
 html.light .history-item-title {

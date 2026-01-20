@@ -3,8 +3,13 @@
  */
 export const LLM_MODELS = {
   openai: [
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-    { value: 'gpt-4o', label: 'GPT-4o' }
+    { value: 'gpt-5', label: 'GPT-5' },
+    { value: 'gpt-5-mini', label: 'GPT-5 Mini' },
+    { value: 'gpt-5-nano', label: 'GPT-5 Nano' },
+    { value: 'gpt-4.1', label: 'GPT-4.1' },
+    { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+    { value: 'gpt-4o', label: 'GPT-4o (Legacy)' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Legacy)' }
   ],
   anthropic: [
     { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },

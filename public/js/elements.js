@@ -22,6 +22,9 @@ export function initElements() {
 
     // History
     historyList: document.getElementById('history-list'),
+    selectAllHistory: document.getElementById('select-all-history'),
+    bulkDeleteBtn: document.getElementById('bulk-delete-btn'),
+    bulkDeleteCount: document.getElementById('bulk-delete-count'),
 
     // Results
     output: document.getElementById('output'),

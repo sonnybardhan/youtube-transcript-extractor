@@ -7,6 +7,130 @@ import { escapeHtml, formatDate } from './utils.js';
 import { showToast } from './ui.js';
 import { showResultsView } from './views.js';
 
+// Selection state
+let selectedItems = new Set();
+
+export function initHistorySelection() {
+  const elements = getElements();
+
+  // Select-all checkbox handler
+  elements.selectAllHistory.addEventListener('change', (e) => {
+    toggleSelectAll(e.target.checked);
+  });
+
+  // Bulk delete button handler
+  elements.bulkDeleteBtn.addEventListener('click', deleteSelectedItems);
+}
+
+function toggleSelectAll(checked) {
+  const elements = getElements();
+  const historyItems = elements.historyList.querySelectorAll('.history-item');
+
+  selectedItems.clear();
+
+  historyItems.forEach(item => {
+    const filename = item.dataset.filename;
+    const checkbox = item.querySelector('.history-checkbox');
+
+    if (checked) {
+      selectedItems.add(filename);
+      item.classList.add('selected');
+      if (checkbox) checkbox.checked = true;
+    } else {
+      item.classList.remove('selected');
+      if (checkbox) checkbox.checked = false;
+    }
+  });
+
+  updateBulkDeleteUI();
+}
+
+function toggleItemSelection(filename, checked) {
+  const elements = getElements();
+  const item = elements.historyList.querySelector(`.history-item[data-filename="${filename}"]`);
+
+  if (checked) {
+    selectedItems.add(filename);
+    if (item) item.classList.add('selected');
+  } else {
+    selectedItems.delete(filename);
+    if (item) item.classList.remove('selected');
+  }
+
+  updateSelectAllState();
+  updateBulkDeleteUI();
+}
+
+function updateSelectAllState() {
+  const elements = getElements();
+  const historyItems = elements.historyList.querySelectorAll('.history-item');
+  const totalItems = historyItems.length;
+
+  if (totalItems === 0) {
+    elements.selectAllHistory.checked = false;
+    elements.selectAllHistory.indeterminate = false;
+  } else if (selectedItems.size === 0) {
+    elements.selectAllHistory.checked = false;
+    elements.selectAllHistory.indeterminate = false;
+  } else if (selectedItems.size === totalItems) {
+    elements.selectAllHistory.checked = true;
+    elements.selectAllHistory.indeterminate = false;
+  } else {
+    elements.selectAllHistory.checked = false;
+    elements.selectAllHistory.indeterminate = true;
+  }
+}
+
+function updateBulkDeleteUI() {
+  const elements = getElements();
+  const count = selectedItems.size;
+
+  if (count > 0) {
+    elements.bulkDeleteBtn.classList.remove('hidden');
+    elements.bulkDeleteCount.textContent = count;
+  } else {
+    elements.bulkDeleteBtn.classList.add('hidden');
+  }
+}
+
+async function deleteSelectedItems() {
+  const count = selectedItems.size;
+  if (count === 0) return;
+
+  if (!confirm(`Delete ${count} selected extraction${count > 1 ? 's' : ''}?`)) return;
+
+  const itemsToDelete = [...selectedItems];
+  let errors = [];
+
+  for (const filename of itemsToDelete) {
+    try {
+      const res = await fetch(`/api/history/${encodeURIComponent(filename)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) {
+        errors.push(filename);
+      }
+    } catch (err) {
+      errors.push(filename);
+    }
+  }
+
+  clearSelection();
+  await loadHistory();
+
+  if (errors.length > 0) {
+    showToast(`Failed to delete ${errors.length} item${errors.length > 1 ? 's' : ''}`);
+  }
+}
+
+function clearSelection() {
+  const elements = getElements();
+  selectedItems.clear();
+  elements.selectAllHistory.checked = false;
+  elements.selectAllHistory.indeterminate = false;
+  updateBulkDeleteUI();
+}
+
 export async function loadHistory() {
   try {
     const res = await fetch('/api/history');
@@ -19,6 +143,11 @@ export async function loadHistory() {
 
 export function renderHistory(files) {
   const elements = getElements();
+
+  // Clear selection state when re-rendering
+  selectedItems.clear();
+  updateSelectAllState();
+  updateBulkDeleteUI();
 
   if (files.length === 0) {
     elements.historyList.textContent = '';
@@ -35,6 +164,18 @@ export function renderHistory(files) {
     const item = document.createElement('div');
     item.className = 'history-item';
     item.dataset.filename = file.filename;
+
+    // Checkbox for selection
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'history-checkbox';
+    checkbox.title = 'Select for bulk delete';
+    checkbox.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+    checkbox.addEventListener('change', (e) => {
+      toggleItemSelection(file.filename, e.target.checked);
+    });
 
     const content = document.createElement('div');
     content.className = 'history-item-content';
@@ -60,12 +201,13 @@ export function renderHistory(files) {
     deleteIcon.textContent = 'delete';
     deleteBtn.appendChild(deleteIcon);
 
+    item.appendChild(checkbox);
     item.appendChild(content);
     item.appendChild(deleteBtn);
 
     // Click handler for loading item
     item.addEventListener('click', (e) => {
-      if (e.target.closest('.delete-btn')) return;
+      if (e.target.closest('.delete-btn') || e.target.closest('.history-checkbox')) return;
       loadHistoryItem(file.filename);
     });
 
