@@ -48,6 +48,10 @@
                 <span id="bulk-delete-count"></span>
               </button>
             </div>
+            <div class="history-search">
+              <span class="material-symbols-outlined">search</span>
+              <input type="text" id="history-search-input" placeholder="Search history...">
+            </div>
             <div id="history-list" class="history-list">
               <p class="empty-state">No extractions yet</p>
             </div>
@@ -184,6 +188,14 @@ https://youtube.com/watch?v=..."
             </div>
             <div class="header-actions">
               <button
+                id="cancel-stream-btn"
+                class="header-btn danger hidden"
+                title="Cancel current request"
+              >
+                <span class="material-symbols-outlined">close</span>
+                <span>Cancel</span>
+              </button>
+              <button
                 id="rerun-llm-btn"
                 class="header-btn secondary"
                 title="Re-process with LLM"
@@ -256,6 +268,10 @@ https://youtube.com/watch?v=..."
             <div class="spinner"></div>
             <p>Extracting transcripts...</p>
             <p class="loading-subtitle">This may take a moment</p>
+            <button id="cancel-extract-btn" class="cancel-btn">
+              <span class="material-symbols-outlined">close</span>
+              <span>Cancel</span>
+            </button>
           </div>
         </div>
       </main>

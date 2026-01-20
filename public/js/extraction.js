@@ -5,10 +5,46 @@ import { LLM_MODELS } from './config.js';
 import { getElements } from './elements.js';
 import { getState, setState } from './state.js';
 import { setLoading, showToast } from './ui.js';
-import { showResultsView, updateInfoPane, renderBasicContent, renderStreamingSections } from './views.js';
+import { showResultsView, showInputView, updateInfoPane, renderBasicContent, renderStreamingSections } from './views.js';
 import { renderMarkdown } from './markdown.js';
 import { loadHistory } from './history.js';
 import { createStreamingRequest, parsePartialJSON, throttledRender, flushRender, resetThrottleState } from './streaming.js';
+
+/**
+ * Show/hide streaming UI controls
+ */
+function setStreamingUI(isStreaming) {
+  const elements = getElements();
+  if (isStreaming) {
+    elements.cancelStreamBtn.classList.remove('hidden');
+    elements.rerunLlmBtn.disabled = true;
+  } else {
+    elements.cancelStreamBtn.classList.add('hidden');
+    elements.rerunLlmBtn.disabled = false;
+  }
+}
+
+/**
+ * Cancel the current in-progress request
+ */
+export function cancelCurrentRequest() {
+  const currentRequest = getState('currentRequest');
+  if (currentRequest) {
+    currentRequest.abort();
+    setState('currentRequest', null);
+    setStreamingUI(false);
+
+    const elements = getElements();
+    // If loading overlay is visible, go back to input view
+    // Otherwise stay on results view
+    if (!elements.loadingOverlay.classList.contains('hidden')) {
+      setLoading(false);
+      showInputView();
+    }
+
+    showToast('Request cancelled');
+  }
+}
 
 export function handleProviderChange() {
   const elements = getElements();
@@ -121,9 +157,10 @@ export async function handleExtract() {
 
         // Reset throttle state before starting new stream
         resetThrottleState();
+        setStreamingUI(true);
 
         await new Promise((resolve, reject) => {
-          createStreamingRequest(
+          const streamController = createStreamingRequest(
             '/api/extract/process/stream',
             {
               basicInfo: result.data,
@@ -137,6 +174,8 @@ export async function handleExtract() {
                 throttledRender(lastSections, result.data.title, renderStreamingSections);
               },
               onComplete: async (data) => {
+                setState('currentRequest', null);
+                setStreamingUI(false);
                 // Flush final render before switching to markdown view
                 flushRender(lastSections, result.data.title, renderStreamingSections);
                 setState('currentMarkdown', data.markdown);
@@ -146,6 +185,8 @@ export async function handleExtract() {
                 resolve();
               },
               onError: (err) => {
+                setState('currentRequest', null);
+                setStreamingUI(false);
                 llmErrors.push({ url: result.url, error: err.message });
                 setState('currentModel', null);
                 renderBasicContent(successfulBasic.map(r => r.data));
@@ -153,6 +194,7 @@ export async function handleExtract() {
               }
             }
           );
+          setState('currentRequest', streamController);
         }).catch(() => {});
 
         // Handle additional videos with non-streaming (for simplicity)
@@ -258,10 +300,11 @@ export async function handleRerunLLM() {
 
   // Reset throttle state before starting new stream
   resetThrottleState();
+  setStreamingUI(true);
 
   try {
     await new Promise((resolve, reject) => {
-      createStreamingRequest(
+      const streamController = createStreamingRequest(
         '/api/reprocess/stream',
         {
           filename: currentFilename,
@@ -275,6 +318,8 @@ export async function handleRerunLLM() {
             throttledRender(lastSections, currentTitle, renderStreamingSections);
           },
           onComplete: async (data) => {
+            setState('currentRequest', null);
+            setStreamingUI(false);
             // Flush final render before switching to markdown view
             flushRender(lastSections, currentTitle, renderStreamingSections);
             setState('currentMarkdown', data.markdown);
@@ -285,16 +330,20 @@ export async function handleRerunLLM() {
             resolve();
           },
           onError: (err) => {
+            setState('currentRequest', null);
+            setStreamingUI(false);
             reject(err);
           }
         }
       );
+      setState('currentRequest', streamController);
     });
   } catch (err) {
     showToast(err.message);
   } finally {
     // Reset debounce flag and re-enable button
     isRerunning = false;
-    elements.rerunLlmBtn.disabled = false;
+    setState('currentRequest', null);
+    setStreamingUI(false);
   }
 }

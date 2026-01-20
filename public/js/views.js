@@ -39,6 +39,9 @@ export function showInputView() {
   elements.inputView.classList.remove('hidden');
   elements.resultsView.classList.add('hidden');
 
+  // Clear URL input
+  elements.urlsInput.value = '';
+
   // Clear active history state
   elements.historyList.querySelectorAll('.history-item').forEach(item => {
     item.classList.remove('active');
@@ -52,13 +55,21 @@ export function showResultsView(markdown, title, noTranscriptWarning = null) {
   elements.resultsView.classList.remove('hidden');
   elements.currentTitle.textContent = truncate(title, 40);
 
-  // If markdown is null, show loading placeholder in output
+  // If markdown is null, show loading skeletons for all sections
   if (markdown === null) {
     elements.output.textContent = '';
-    const placeholder = document.createElement('div');
-    placeholder.className = 'loading-placeholder';
-    placeholder.textContent = 'Processing with LLM...';
-    elements.output.appendChild(placeholder);
+
+    // Title placeholder
+    const h1 = document.createElement('h1');
+    h1.textContent = title;
+    elements.output.appendChild(h1);
+
+    // Show loading sections for each expected part
+    const sections = ['TLDR', 'Key Insights', 'Action Items & Takeaways', 'Summary'];
+    sections.forEach(sectionName => {
+      const section = createLoadingSection(sectionName);
+      elements.output.appendChild(section);
+    });
   } else {
     renderMarkdown(markdown, noTranscriptWarning);
   }
@@ -204,10 +215,10 @@ export function renderStreamingSections(sections, title) {
     ensureSection(container, 'actionItems', () => createLoadingSection('Action Items & Takeaways'), 'loading');
   }
 
-  // Summary/Transcript section - use incremental paragraph rendering
-  if (sections.transcript || sections.transcriptPartial) {
-    const content = sections.transcript || sections.transcriptPartial;
-    const isPartial = !sections.transcript;
+  // Summary section - use incremental paragraph rendering
+  if (sections.summary || sections.summaryPartial) {
+    const content = sections.summary || sections.summaryPartial;
+    const isPartial = !sections.summary;
     updateSummarySection(container, content, isPartial);
   } else {
     // Show loading placeholder

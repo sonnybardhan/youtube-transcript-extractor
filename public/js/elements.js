@@ -25,6 +25,7 @@ export function initElements() {
     selectAllHistory: document.getElementById('select-all-history'),
     bulkDeleteBtn: document.getElementById('bulk-delete-btn'),
     bulkDeleteCount: document.getElementById('bulk-delete-count'),
+    historySearchInput: document.getElementById('history-search-input'),
 
     // Results
     output: document.getElementById('output'),
@@ -32,6 +33,7 @@ export function initElements() {
     backToInput: document.getElementById('back-to-input'),
     copyMarkdownBtn: document.getElementById('copy-markdown-btn'),
     rerunLlmBtn: document.getElementById('rerun-llm-btn'),
+    cancelStreamBtn: document.getElementById('cancel-stream-btn'),
 
     // Info Pane
     infoPane: document.getElementById('info-pane'),
@@ -48,6 +50,7 @@ export function initElements() {
     resultsLoading: document.getElementById('results-loading'),
     resultsMain: document.getElementById('results-main'),
     apiStatus: document.getElementById('api-status'),
+    cancelExtractBtn: document.getElementById('cancel-extract-btn'),
 
     // Modal
     promptModal: document.getElementById('prompt-modal'),

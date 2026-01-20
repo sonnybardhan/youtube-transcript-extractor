@@ -136,15 +136,15 @@ export function parsePartialJSON(text) {
     }
   }
 
-  // Try to extract transcript (this is usually the longest field)
-  const transcriptMatch = text.match(/"transcript"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  if (transcriptMatch) {
-    sections.transcript = unescapeJsonString(transcriptMatch[1]);
+  // Try to extract summary (or transcript for backwards compatibility)
+  const summaryMatch = text.match(/"(?:summary|transcript)"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (summaryMatch) {
+    sections.summary = unescapeJsonString(summaryMatch[1]);
   } else {
-    // Check if transcript has started but not completed
-    const transcriptStartMatch = text.match(/"transcript"\s*:\s*"((?:[^"\\]|\\.)*)/);
-    if (transcriptStartMatch) {
-      sections.transcriptPartial = unescapeJsonString(transcriptStartMatch[1]);
+    // Check if summary has started but not completed
+    const summaryStartMatch = text.match(/"(?:summary|transcript)"\s*:\s*"((?:[^"\\]|\\.)*)/);
+    if (summaryStartMatch) {
+      sections.summaryPartial = unescapeJsonString(summaryStartMatch[1]);
     }
   }
 

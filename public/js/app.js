@@ -6,7 +6,7 @@
 import { initElements, getElements } from './elements.js';
 import { loadConfig, loadPrompt } from './api.js';
 import { loadHistory, initHistorySelection } from './history.js';
-import { handleExtract, handleRerunLLM, handleProviderChange, handleCompressionChange } from './extraction.js';
+import { handleExtract, handleRerunLLM, handleProviderChange, handleCompressionChange, cancelCurrentRequest } from './extraction.js';
 import { showInputView } from './views.js';
 import {
   loadSavedTheme,
@@ -78,6 +78,10 @@ function setupEventListeners() {
 
   // Rerun LLM button
   elements.rerunLlmBtn.addEventListener('click', handleRerunLLM);
+
+  // Cancel buttons
+  elements.cancelExtractBtn.addEventListener('click', cancelCurrentRequest);
+  elements.cancelStreamBtn.addEventListener('click', cancelCurrentRequest);
 
   // Info pane tabs and toggle
   elements.infoPaneTabs.forEach(tab => {

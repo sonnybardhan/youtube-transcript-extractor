@@ -108,7 +108,7 @@ body {
    Sidebar
    ======================================== */
 .sidebar {
-  width: 256px;
+  width: 300px;
   height: 100%;
   background: var(--surface-darker);
   border-right: 1px solid var(--border-dark);
@@ -199,6 +199,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
+  min-height: 40px;
 }
 
 .history-header-left {
@@ -237,7 +238,7 @@ body {
   font-size: 12px;
   font-weight: 600;
   font-family: var(--font-display);
-  transition: all 0.15s ease;
+  transition: opacity 0.15s ease, background 0.15s ease;
 }
 
 .bulk-delete-btn:hover {
@@ -249,7 +250,42 @@ body {
 }
 
 .bulk-delete-btn.hidden {
-  display: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* History search */
+.history-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 8px;
+}
+
+.history-search .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--text-dim);
+}
+
+.history-search input {
+  flex: 1;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: var(--font-display);
+  color: var(--text-main);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.history-search input::placeholder {
+  color: var(--text-dim);
+}
+
+.history-search input:focus {
+  border-color: var(--primary);
 }
 
 .history-list {
@@ -267,7 +303,7 @@ body {
   border: none;
   background: transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease;
   text-align: left;
   font-family: var(--font-display);
   border-left: 2px solid transparent;
@@ -316,24 +352,23 @@ body {
 }
 
 .delete-btn {
-  opacity: 0;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   width: 28px;
   height: 28px;
   color: var(--text-muted);
-  background: none;
+  background: transparent;
   border: none;
   cursor: pointer;
   border-radius: 6px;
   font-family: var(--font-display);
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
 }
 
 .history-item:hover .delete-btn {
-  opacity: 1;
+  display: flex;
 }
 
 .delete-btn:hover {
@@ -823,6 +858,16 @@ body {
 
 .header-btn.primary:hover {
   background: var(--primary-hover);
+}
+
+.header-btn.danger {
+  background: var(--error);
+  border: none;
+  color: #fff;
+}
+
+.header-btn.danger:hover {
+  background: #dc2626;
 }
 
 .header-btn .material-symbols-outlined {
@@ -1426,6 +1471,33 @@ body {
   color: var(--text-muted);
 }
 
+.cancel-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cancel-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.cancel-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
 /* ========================================
    Modal
    ======================================== */
@@ -1847,7 +1919,7 @@ body {
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
-    left: -256px;
+    left: -300px;
     z-index: 100;
     transition: left 0.3s ease;
   }
@@ -2075,6 +2147,11 @@ html.light .loading-content p {
 html.light .spinner {
   border-color: var(--border-dark);
   border-top-color: var(--primary);
+}
+
+html.light .cancel-btn {
+  border-color: var(--border-dark);
+  color: var(--text-muted);
 }
 
 html.light .modal {

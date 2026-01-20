@@ -10,6 +10,9 @@ import { showResultsView } from './views.js';
 // Selection state
 let selectedItems = new Set();
 
+// Full history data for filtering
+let allFiles = [];
+
 export function initHistorySelection() {
   const elements = getElements();
 
@@ -20,6 +23,27 @@ export function initHistorySelection() {
 
   // Bulk delete button handler
   elements.bulkDeleteBtn.addEventListener('click', deleteSelectedItems);
+
+  // Search input handler
+  elements.historySearchInput.addEventListener('input', (e) => {
+    filterHistory(e.target.value);
+  });
+}
+
+function filterHistory(query) {
+  const normalizedQuery = query.toLowerCase().trim();
+
+  if (!normalizedQuery) {
+    // Show all items when search is empty
+    renderHistory(allFiles);
+    return;
+  }
+
+  const filtered = allFiles.filter(file =>
+    file.title.toLowerCase().includes(normalizedQuery)
+  );
+
+  renderHistory(filtered, true);
 }
 
 function toggleSelectAll(checked) {
@@ -135,13 +159,20 @@ export async function loadHistory() {
   try {
     const res = await fetch('/api/history');
     const files = await res.json();
+    allFiles = files; // Store for filtering
     renderHistory(files);
+
+    // Clear search input when reloading
+    const elements = getElements();
+    if (elements.historySearchInput) {
+      elements.historySearchInput.value = '';
+    }
   } catch (err) {
     console.error('Failed to load history:', err);
   }
 }
 
-export function renderHistory(files) {
+export function renderHistory(files, isFiltered = false) {
   const elements = getElements();
 
   // Clear selection state when re-rendering
@@ -153,7 +184,7 @@ export function renderHistory(files) {
     elements.historyList.textContent = '';
     const emptyState = document.createElement('p');
     emptyState.className = 'empty-state';
-    emptyState.textContent = 'No extractions yet';
+    emptyState.textContent = isFiltered ? 'No matching results' : 'No extractions yet';
     elements.historyList.appendChild(emptyState);
     return;
   }

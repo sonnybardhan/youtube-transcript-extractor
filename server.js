@@ -272,7 +272,7 @@ app.post("/api/extract/process/stream", async (req, res) => {
 
     output += `## Description\n\n${description}\n\n`;
 
-    output += `## Summary\n\n${llmContent?.transcript ? convertToSubheadings(llmContent.transcript) : originalTranscriptFormatted}\n\n`;
+    output += `## Summary\n\n${(llmContent?.summary || llmContent?.transcript) ? convertToSubheadings(llmContent.summary || llmContent.transcript) : originalTranscriptFormatted}\n\n`;
 
     output += `---\n\n<details>\n<summary>Original Transcript</summary>\n\n${originalTranscriptFormatted}\n\n</details>`;
 
@@ -411,7 +411,7 @@ app.post("/api/reprocess/stream", async (req, res) => {
       output += `## Description\n\n${descMatch[1]}`;
     }
 
-    output += `## Content Breakdown\n\n${llmContent?.transcript ? convertToSubheadings(llmContent.transcript) : originalTranscript}\n\n---\n\n<details>\n<summary>Original Transcript</summary>\n\n${originalTranscript}\n\n</details>`;
+    output += `## Content Breakdown\n\n${(llmContent?.summary || llmContent?.transcript) ? convertToSubheadings(llmContent.summary || llmContent.transcript) : originalTranscript}\n\n---\n\n<details>\n<summary>Original Transcript</summary>\n\n${originalTranscript}\n\n</details>`;
 
     // Save new file
     const newPath = join(tempDir, newFilename);
@@ -534,7 +534,7 @@ app.post("/api/reprocess", async (req, res) => {
       output += `## Description\n\n${descMatch[1]}`;
     }
 
-    output += `## Content Breakdown\n\n${llmContent?.transcript ? convertToSubheadings(llmContent.transcript) : originalTranscript}\n\n---\n\n<details>\n<summary>Original Transcript</summary>\n\n${originalTranscript}\n\n</details>`;
+    output += `## Content Breakdown\n\n${(llmContent?.summary || llmContent?.transcript) ? convertToSubheadings(llmContent.summary || llmContent.transcript) : originalTranscript}\n\n---\n\n<details>\n<summary>Original Transcript</summary>\n\n${originalTranscript}\n\n</details>`;
 
     // Save new file
     const newPath = join(tempDir, newFilename);

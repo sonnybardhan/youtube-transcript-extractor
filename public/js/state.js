@@ -10,7 +10,8 @@ const state = {
   currentMetadata: null,
   currentFilename: null,
   currentModel: null,
-  compressionLevel: 50
+  compressionLevel: 50,
+  currentRequest: null  // Holds abort controller for in-progress request
 };
 
 export function getState(key) {
