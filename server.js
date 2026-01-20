@@ -16,15 +16,18 @@ import {
   processWithLLMAndFormat,
   reprocessWithLLM,
   getTempDir,
+  getPromptsDir,
   DEFAULT_PROMPT,
   getPromptForCompression,
   sanitizeFilename,
+  streamWithLLM,
+  convertToSubheadings,
 } from "./lib/extractor.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
-const PROMPT_FILE = join(__dirname, "temp", "custom-prompt.txt");
+const PROMPT_FILE = join(getPromptsDir(), "custom-prompt.txt");
 
 // Load .env file if present
 const envPath = join(__dirname, ".env");
@@ -163,9 +166,278 @@ app.post("/api/extract/process", async (req, res) => {
       markdown: result.output,
       videoId: result.videoId,
       llmError: result.llmError,
+      promptUsed: result.promptUsed,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Process with LLM using streaming SSE
+app.post("/api/extract/process/stream", async (req, res) => {
+  const { basicInfo, llm, compressionLevel } = req.body;
+
+  if (!basicInfo) {
+    return res.status(400).json({ error: "basicInfo is required" });
+  }
+
+  if (!basicInfo.hasTranscript) {
+    return res
+      .status(400)
+      .json({ error: "No transcript available for LLM processing" });
+  }
+
+  // Build LLM config
+  let llmConfig = null;
+  if (llm?.provider && llm?.model) {
+    const apiKey = getApiKeyForProvider(llm.provider);
+
+    if (apiKey) {
+      llmConfig = {
+        provider: llm.provider,
+        model: llm.model,
+        apiKey,
+        compressionLevel: compressionLevel ?? 50,
+      };
+    }
+  }
+
+  if (!llmConfig) {
+    return res.status(400).json({ error: "Valid LLM configuration required" });
+  }
+
+  // Set up SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const {
+    videoId,
+    title,
+    channel,
+    publishDate,
+    duration,
+    views,
+    description,
+    transcript,
+    transcriptFormatted,
+  } = basicInfo;
+
+  try {
+    // Stream chunks as SSE events
+    const onChunk = (chunk) => {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    };
+
+    // Call streaming LLM function
+    const llmResult = await streamWithLLM(transcript, title, llmConfig, onChunk);
+
+    if (!llmResult) {
+      res.write(`data: ${JSON.stringify({ error: "LLM processing failed" })}\n\n`);
+      res.end();
+      return;
+    }
+
+    const llmContent = llmResult.result;
+    const promptUsed = llmResult.promptUsed;
+
+    // Generate markdown from the result
+    const originalTranscriptFormatted =
+      transcriptFormatted || "No transcript available for this video.";
+
+    let output = "";
+
+    if (promptUsed) {
+      output += `<details>\n<summary>LLM Prompt Used</summary>\n\n${promptUsed}\n\n</details>\n\n`;
+    }
+
+    output += `# ${title}\n\n`;
+
+    if (llmContent?.tldr) {
+      output += `## TLDR\n\n${llmContent.tldr}\n\n`;
+    }
+
+    if (llmContent?.keyInsights?.length > 0) {
+      output += `## Key Insights\n\n${llmContent.keyInsights.map((insight) => `- ${insight}`).join("\n")}\n\n`;
+    }
+
+    if (llmContent?.actionItems?.length > 0) {
+      output += `## Action Items & Takeaways\n\n${llmContent.actionItems.map((item) => `- ${item}`).join("\n")}\n\n`;
+    }
+
+    output += `## Metadata\n\n`;
+    output += `- **Channel:** ${channel}\n`;
+    output += `- **Published:** ${publishDate}\n`;
+    output += `- **Duration:** ${duration}\n`;
+    output += `- **Views:** ${views}\n`;
+    output += `- **URL:** https://youtube.com/watch?v=${videoId}\n\n`;
+
+    output += `## Description\n\n${description}\n\n`;
+
+    output += `## Summary\n\n${llmContent?.transcript ? convertToSubheadings(llmContent.transcript) : originalTranscriptFormatted}\n\n`;
+
+    output += `---\n\n<details>\n<summary>Original Transcript</summary>\n\n${originalTranscriptFormatted}\n\n</details>`;
+
+    // Save markdown to temp folder
+    const tempDir = getTempDir();
+    const filename = `${sanitizeFilename(title)}.md`;
+    const mdPath = join(tempDir, filename);
+    writeFileSync(mdPath, output);
+
+    // Send completion event with parsed markdown
+    res.write(
+      `data: ${JSON.stringify({
+        complete: true,
+        markdown: output,
+        filename,
+        title,
+        videoId,
+        promptUsed,
+      })}\n\n`
+    );
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Streaming reprocess endpoint
+app.post("/api/reprocess/stream", async (req, res) => {
+  const { filename, llm, compressionLevel } = req.body;
+
+  if (!filename) {
+    return res.status(400).json({ error: "filename is required" });
+  }
+
+  const tempDir = getTempDir();
+  const filePath = join(tempDir, filename);
+
+  if (!existsSync(filePath)) {
+    return res.status(404).json({ error: "File not found" });
+  }
+
+  // Read the file and extract original transcript
+  const content = readFileSync(filePath, "utf-8");
+
+  const detailsMatch = content.match(
+    /<details>\s*<summary>Original Transcript<\/summary>([\s\S]*?)<\/details>/i,
+  );
+  if (!detailsMatch) {
+    return res
+      .status(400)
+      .json({ error: "No original transcript found in file" });
+  }
+
+  const originalTranscript = detailsMatch[1].trim();
+
+  const titleMatch = content.match(/^#\s+(.+)$/m);
+  const title = titleMatch ? titleMatch[1] : filename.replace(".md", "");
+
+  // Build LLM config
+  let llmConfig = null;
+  if (llm?.provider && llm?.model) {
+    const apiKey = getApiKeyForProvider(llm.provider);
+
+    if (apiKey) {
+      llmConfig = {
+        provider: llm.provider,
+        model: llm.model,
+        apiKey,
+        compressionLevel: compressionLevel ?? 50,
+      };
+    }
+  }
+
+  if (!llmConfig) {
+    return res.status(400).json({ error: "Valid LLM configuration required" });
+  }
+
+  // Set up SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  try {
+    const onChunk = (chunk) => {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    };
+
+    const llmResult = await streamWithLLM(originalTranscript, title, llmConfig, onChunk);
+
+    if (!llmResult) {
+      res.write(`data: ${JSON.stringify({ error: "LLM processing failed" })}\n\n`);
+      res.end();
+      return;
+    }
+
+    const llmContent = llmResult.result;
+    const promptUsed = llmResult.promptUsed;
+
+    // Create new filename with timestamp
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .slice(0, 19);
+    const baseTitle = title.replace(/ \(\d{4}-\d{2}-\d{2}T.*\)$/, "");
+    const newFilename = `${sanitizeFilename(baseTitle)} (${timestamp}).md`;
+
+    // Extract metadata from original file
+    const metadataMatch = content.match(/## Metadata\n\n([\s\S]*?)(?=\n## |$)/);
+    const descMatch = content.match(/## Description\n\n([\s\S]*?)(?=\n## |$)/);
+
+    // Build new markdown
+    let output = "";
+
+    if (promptUsed) {
+      output += `<details>\n<summary>LLM Prompt Used</summary>\n\n${promptUsed}\n\n</details>\n\n`;
+    }
+
+    output += `# ${title}\n\n`;
+
+    if (llmContent?.tldr) {
+      output += `## TLDR\n\n${llmContent.tldr}\n\n`;
+    }
+
+    if (llmContent?.keyInsights?.length > 0) {
+      output += `## Key Insights\n\n${llmContent.keyInsights.map((i) => `- ${i}`).join("\n")}\n\n`;
+    }
+
+    if (llmContent?.actionItems?.length > 0) {
+      output += `## Action Items & Takeaways\n\n${llmContent.actionItems.map((i) => `- ${i}`).join("\n")}\n\n`;
+    }
+
+    if (metadataMatch) {
+      output += `## Metadata\n\n${metadataMatch[1]}`;
+    }
+
+    if (descMatch) {
+      output += `## Description\n\n${descMatch[1]}`;
+    }
+
+    output += `## Content Breakdown\n\n${llmContent?.transcript ? convertToSubheadings(llmContent.transcript) : originalTranscript}\n\n---\n\n<details>\n<summary>Original Transcript</summary>\n\n${originalTranscript}\n\n</details>`;
+
+    // Save new file
+    const newPath = join(tempDir, newFilename);
+    writeFileSync(newPath, output);
+
+    res.write(
+      `data: ${JSON.stringify({
+        complete: true,
+        filename: newFilename,
+        markdown: output,
+        title,
+        promptUsed,
+      })}\n\n`
+    );
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
   }
 });
 
@@ -224,11 +496,14 @@ app.post("/api/reprocess", async (req, res) => {
   }
 
   try {
-    const llmContent = await reprocessWithLLM(
+    const llmResult = await reprocessWithLLM(
       originalTranscript,
       title,
       llmConfig,
     );
+
+    const llmContent = llmResult?.result;
+    const promptUsed = llmResult?.promptUsed;
 
     // Create new filename with timestamp
     const timestamp = new Date()
@@ -243,7 +518,14 @@ app.post("/api/reprocess", async (req, res) => {
     const descMatch = content.match(/## Description\n\n([\s\S]*?)(?=\n## |$)/);
 
     // Build new markdown
-    let output = `# ${title}\n\n`;
+    let output = "";
+
+    // Add collapsed prompt section at the very top for testing
+    if (promptUsed) {
+      output += `<details>\n<summary>LLM Prompt Used</summary>\n\n${promptUsed}\n\n</details>\n\n`;
+    }
+
+    output += `# ${title}\n\n`;
 
     if (llmContent?.tldr) {
       output += `## TLDR\n\n${llmContent.tldr}\n\n`;
@@ -265,7 +547,7 @@ app.post("/api/reprocess", async (req, res) => {
       output += `## Description\n\n${descMatch[1]}`;
     }
 
-    output += `## Content Breakdown\n\n${llmContent?.transcript || originalTranscript}\n\n---\n\n<details>\n<summary>Original Transcript</summary>\n\n${originalTranscript}\n\n</details>`;
+    output += `## Content Breakdown\n\n${llmContent?.transcript ? convertToSubheadings(llmContent.transcript) : originalTranscript}\n\n---\n\n<details>\n<summary>Original Transcript</summary>\n\n${originalTranscript}\n\n</details>`;
 
     // Save new file
     const newPath = join(tempDir, newFilename);
@@ -276,6 +558,7 @@ app.post("/api/reprocess", async (req, res) => {
       filename: newFilename,
       markdown: output,
       title,
+      promptUsed,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -389,6 +672,17 @@ app.delete("/api/prompt", (_req, res) => {
     unlinkSync(PROMPT_FILE);
   }
   res.json({ success: true });
+});
+
+// Global error handler - ensures all errors return JSON instead of HTML
+app.use((err, _req, res, _next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: err.message || 'Internal server error' });
+});
+
+// 404 handler for API routes - ensures 404s return JSON
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
 });
 
 app.listen(PORT, () => {

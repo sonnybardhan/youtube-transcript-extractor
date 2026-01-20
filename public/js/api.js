@@ -3,6 +3,7 @@
  */
 import { getElements } from './elements.js';
 import { setState, updateState } from './state.js';
+import { LLM_MODELS } from './config.js';
 
 export async function loadConfig() {
   const elements = getElements();
@@ -32,6 +33,26 @@ export async function loadConfig() {
     const hasAnyKey = apiConfig.hasOpenAI || apiConfig.hasAnthropic || apiConfig.hasOpenRouter;
     elements.apiStatus.textContent = hasAnyKey ? 'Operational' : 'No API Keys';
     elements.apiStatus.className = hasAnyKey ? 'status-ok' : 'status-error';
+
+    // Initialize model dropdown based on default provider selection
+    const selectedProvider = elements.providerSelect.value;
+    if (selectedProvider && LLM_MODELS[selectedProvider]) {
+      const models = LLM_MODELS[selectedProvider];
+      elements.modelSelect.disabled = false;
+      elements.modelSelect.textContent = '';
+
+      models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.value;
+        opt.textContent = m.label;
+        elements.modelSelect.appendChild(opt);
+      });
+
+      // Default to GPT-4o for OpenAI
+      if (selectedProvider === 'openai') {
+        elements.modelSelect.value = 'gpt-4o';
+      }
+    }
   } catch (err) {
     console.error('Failed to load config:', err);
     elements.apiStatus.textContent = 'Error';

@@ -5,9 +5,10 @@ import { LLM_MODELS } from './config.js';
 import { getElements } from './elements.js';
 import { getState, setState } from './state.js';
 import { setLoading, showToast } from './ui.js';
-import { showResultsView, updateInfoPane, renderBasicContent } from './views.js';
+import { showResultsView, updateInfoPane, renderBasicContent, renderStreamingSections } from './views.js';
 import { renderMarkdown } from './markdown.js';
 import { loadHistory } from './history.js';
+import { createStreamingRequest, parsePartialJSON, throttledRender, flushRender, resetThrottleState } from './streaming.js';
 
 export function handleProviderChange() {
   const elements = getElements();
@@ -98,42 +99,98 @@ export async function handleExtract() {
 
     // Phase 2: Process with LLM (or show basic content)
     if (llm) {
-      // Show loading spinner in center pane only (keeps transcript visible)
-      setLoading(true, true);
-
-      const llmResults = [];
       const llmErrors = [];
-      const customPrompt = getState('customPrompt');
       const compressionLevel = getState('compressionLevel');
 
-      // Process each URL with LLM sequentially
-      for (const result of successfulBasic) {
-        if (!result.data.hasTranscript) {
-          llmErrors.push({ url: result.url, error: 'No transcript available' });
-          continue;
-        }
+      // For now, process only the first video with streaming
+      // (multiple video support can be added later)
+      const result = successfulBasic[0];
 
-        try {
-          const llmRes = await fetch('/api/extract/process', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+      if (!result.data.hasTranscript) {
+        llmErrors.push({ url: result.url, error: 'No transcript available' });
+        setState('currentModel', null);
+        renderBasicContent(successfulBasic.map(r => r.data));
+      } else {
+        // Use streaming for LLM processing
+        let accumulated = '';
+        let lastSections = {};
+
+        // Store the model label for display
+        const modelInfo = LLM_MODELS[provider]?.find(m => m.value === model);
+        setState('currentModel', modelInfo?.label || model);
+
+        // Reset throttle state before starting new stream
+        resetThrottleState();
+
+        await new Promise((resolve, reject) => {
+          createStreamingRequest(
+            '/api/extract/process/stream',
+            {
               basicInfo: result.data,
               llm,
-              customPrompt,
               compressionLevel
-            })
-          });
+            },
+            {
+              onChunk: (chunk) => {
+                accumulated += chunk;
+                lastSections = parsePartialJSON(accumulated);
+                throttledRender(lastSections, result.data.title, renderStreamingSections);
+              },
+              onComplete: async (data) => {
+                // Flush final render before switching to markdown view
+                flushRender(lastSections, result.data.title, renderStreamingSections);
+                setState('currentMarkdown', data.markdown);
+                setState('currentFilename', data.filename);
+                renderMarkdown(data.markdown);
+                await loadHistory();
+                resolve();
+              },
+              onError: (err) => {
+                llmErrors.push({ url: result.url, error: err.message });
+                setState('currentModel', null);
+                renderBasicContent(successfulBasic.map(r => r.data));
+                reject(err);
+              }
+            }
+          );
+        }).catch(() => {});
 
-          const llmData = await llmRes.json();
+        // Handle additional videos with non-streaming (for simplicity)
+        if (successfulBasic.length > 1) {
+          for (let i = 1; i < successfulBasic.length; i++) {
+            const additionalResult = successfulBasic[i];
+            if (!additionalResult.data.hasTranscript) {
+              llmErrors.push({ url: additionalResult.url, error: 'No transcript available' });
+              continue;
+            }
 
-          if (llmData.success) {
-            llmResults.push(llmData);
-          } else {
-            llmErrors.push({ url: result.url, error: llmData.error });
+            try {
+              const llmRes = await fetch('/api/extract/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  basicInfo: additionalResult.data,
+                  llm,
+                  compressionLevel
+                })
+              });
+
+              const llmData = await llmRes.json();
+
+              if (llmData.success) {
+                const currentMarkdown = getState('currentMarkdown');
+                const combinedMarkdown = currentMarkdown + '\n\n---\n\n' + llmData.markdown;
+                setState('currentMarkdown', combinedMarkdown);
+                setState('currentFilename', null);
+                renderMarkdown(combinedMarkdown);
+              } else {
+                llmErrors.push({ url: additionalResult.url, error: llmData.error });
+              }
+            } catch (err) {
+              llmErrors.push({ url: additionalResult.url, error: err.message });
+            }
           }
-        } catch (err) {
-          llmErrors.push({ url: result.url, error: err.message });
+          await loadHistory();
         }
       }
 
@@ -141,32 +198,6 @@ export async function handleExtract() {
         const errorMsgs = llmErrors.map(e => `${e.url}: ${e.error}`).join('\n');
         showToast(errorMsgs);
       }
-
-      if (llmResults.length > 0) {
-        let markdown = llmResults[0].markdown;
-        let filename = llmResults[0].filename;
-
-        if (llmResults.length > 1) {
-          markdown = llmResults.map(r => r.markdown).join('\n\n---\n\n');
-          filename = null;
-        }
-
-        setState('currentMarkdown', markdown);
-        setState('currentFilename', filename);
-
-        // Store the model label for display
-        const modelInfo = LLM_MODELS[provider]?.find(m => m.value === model);
-        setState('currentModel', modelInfo?.label || model);
-
-        renderMarkdown(markdown);
-        await loadHistory();
-      } else {
-        // All LLM processing failed - show basic content
-        setState('currentModel', null);
-        renderBasicContent(successfulBasic.map(r => r.data));
-      }
-
-      setLoading(false, true);
     } else {
       // No LLM selected - show basic content immediately
       renderBasicContent(successfulBasic.map(r => r.data));
@@ -182,7 +213,15 @@ export async function handleExtract() {
   }
 }
 
+// Track if rerun is in progress to prevent duplicate requests
+let isRerunning = false;
+
 export async function handleRerunLLM() {
+  // Debounce: prevent multiple simultaneous reruns
+  if (isRerunning) {
+    return;
+  }
+
   const elements = getElements();
   const currentFilename = getState('currentFilename');
 
@@ -199,43 +238,63 @@ export async function handleRerunLLM() {
     return;
   }
 
-  // Use results-only loading to keep transcript visible
-  setLoading(true, true);
+  // Set debounce flag and disable button
+  isRerunning = true;
+  elements.rerunLlmBtn.disabled = true;
+
+  const compressionLevel = getState('compressionLevel');
+
+  // Store the model label for display
+  const modelInfo = LLM_MODELS[provider]?.find(m => m.value === model);
+  setState('currentModel', modelInfo?.label || model);
+
+  // Get the current title from the markdown
+  const currentMarkdown = getState('currentMarkdown');
+  const titleMatch = currentMarkdown?.match(/^#\s+(.+)$/m);
+  const currentTitle = titleMatch ? titleMatch[1] : currentFilename.replace('.md', '');
+
+  let accumulated = '';
+  let lastSections = {};
+
+  // Reset throttle state before starting new stream
+  resetThrottleState();
 
   try {
-    const customPrompt = getState('customPrompt');
-    const compressionLevel = getState('compressionLevel');
-
-    const res = await fetch('/api/reprocess', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        filename: currentFilename,
-        llm: { provider, model },
-        customPrompt,
-        compressionLevel
-      })
+    await new Promise((resolve, reject) => {
+      createStreamingRequest(
+        '/api/reprocess/stream',
+        {
+          filename: currentFilename,
+          llm: { provider, model },
+          compressionLevel
+        },
+        {
+          onChunk: (chunk) => {
+            accumulated += chunk;
+            lastSections = parsePartialJSON(accumulated);
+            throttledRender(lastSections, currentTitle, renderStreamingSections);
+          },
+          onComplete: async (data) => {
+            // Flush final render before switching to markdown view
+            flushRender(lastSections, currentTitle, renderStreamingSections);
+            setState('currentMarkdown', data.markdown);
+            setState('currentFilename', data.filename);
+            showResultsView(data.markdown, data.title);
+            await loadHistory();
+            showToast('Successfully reprocessed with LLM', 'success');
+            resolve();
+          },
+          onError: (err) => {
+            reject(err);
+          }
+        }
+      );
     });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || 'Reprocessing failed');
-    }
-
-    setState('currentMarkdown', data.markdown);
-    setState('currentFilename', data.filename);
-
-    // Store the model label for display
-    const modelInfo = LLM_MODELS[provider]?.find(m => m.value === model);
-    setState('currentModel', modelInfo?.label || model);
-
-    showResultsView(data.markdown, data.title);
-    await loadHistory();
-    showToast('Successfully reprocessed with LLM', 'success');
   } catch (err) {
     showToast(err.message);
   } finally {
-    setLoading(false, true);
+    // Reset debounce flag and re-enable button
+    isRerunning = false;
+    elements.rerunLlmBtn.disabled = false;
   }
 }
