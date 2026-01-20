@@ -6,6 +6,33 @@ import { getState, setState } from './state.js';
 import { truncate } from './utils.js';
 import { renderMarkdown } from './markdown.js';
 
+/**
+ * Parse inline markdown and return HTML
+ * Uses marked.parseInline() for inline elements only
+ */
+function parseInlineMarkdown(text) {
+  if (typeof marked !== 'undefined' && marked.parseInline) {
+    return marked.parseInline(text);
+  }
+  // Fallback: escape HTML entities
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Safely set element content with parsed inline markdown
+ * Uses template element for safe HTML parsing
+ */
+function setMarkdownContent(el, text) {
+  const html = parseInlineMarkdown(text);
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  el.textContent = '';
+  el.appendChild(template.content.cloneNode(true));
+}
+
 export function showInputView() {
   const elements = getElements();
 
@@ -327,16 +354,19 @@ function updateSummarySection(container, content, isPartial) {
  */
 function createParagraphElement(text, paraId, isStreaming) {
   let el;
+  let displayText = text;
+
   if (text.startsWith('## ')) {
     el = document.createElement('h3');
-    el.textContent = text.slice(3);
+    displayText = text.slice(3);
   } else if (text.startsWith('### ')) {
     el = document.createElement('h4');
-    el.textContent = text.slice(4);
+    displayText = text.slice(4);
   } else {
     el = document.createElement('p');
-    el.textContent = text;
   }
+
+  setMarkdownContent(el, displayText);
   el.setAttribute('data-para-id', paraId);
   el.setAttribute('data-streaming', isStreaming ? 'true' : 'false');
   return el;
@@ -362,11 +392,11 @@ function updateParagraphContent(el, text, isStreaming) {
     const newEl = document.createElement(expectedTag.toLowerCase());
     newEl.setAttribute('data-para-id', el.getAttribute('data-para-id'));
     newEl.setAttribute('data-streaming', isStreaming ? 'true' : 'false');
-    newEl.textContent = displayText;
+    setMarkdownContent(newEl, displayText);
     el.replaceWith(newEl);
   } else {
     // Just update content and streaming status
-    el.textContent = displayText;
+    setMarkdownContent(el, displayText);
     el.setAttribute('data-streaming', isStreaming ? 'true' : 'false');
   }
 }
@@ -383,7 +413,7 @@ function createTldrSection(tldr) {
   section.appendChild(h2);
 
   const p = document.createElement('p');
-  p.textContent = tldr;
+  setMarkdownContent(p, tldr);
   section.appendChild(p);
 
   return section;
@@ -410,7 +440,7 @@ function createInsightsSection(insights, isPartial) {
   const list = document.createElement('ul');
   insights.forEach(insight => {
     const li = document.createElement('li');
-    li.textContent = insight;
+    setMarkdownContent(li, insight);
     list.appendChild(li);
   });
   section.appendChild(list);
@@ -439,7 +469,7 @@ function createActionsSection(items, isPartial) {
   const list = document.createElement('ul');
   items.forEach(item => {
     const li = document.createElement('li');
-    li.textContent = item;
+    setMarkdownContent(li, item);
     list.appendChild(li);
   });
   section.appendChild(list);

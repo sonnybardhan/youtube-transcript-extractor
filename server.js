@@ -40,7 +40,7 @@ if (existsSync(envPath)) {
     });
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(join(__dirname, "public")));
 
 // Helper to get API key for a given provider
