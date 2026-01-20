@@ -295,6 +295,9 @@ export async function handleRerunLLM() {
   const titleMatch = currentMarkdown?.match(/^#\s+(.+)$/m);
   const currentTitle = titleMatch ? titleMatch[1] : currentFilename.replace('.md', '');
 
+  // Show loading skeleton view (like a fresh extraction)
+  showResultsView(null, currentTitle);
+
   let accumulated = '';
   let lastSections = {};
 
