@@ -177,22 +177,11 @@ export function renderStreamingSections(sections, title) {
     ensureSection(container, 'actionItems', () => createLoadingSection('Action Items & Takeaways'), 'loading');
   }
 
-  // Summary/Transcript section - show loading, then partial stream, then complete
-  if (sections.transcript) {
-    ensureSection(
-      container,
-      'summary',
-      () => createSummarySection(sections.transcript, false),
-      'stable'
-    );
-  } else if (sections.transcriptPartial) {
-    // Still streaming - update content on each render
-    ensureSection(
-      container,
-      'summary',
-      () => createSummarySection(sections.transcriptPartial, true),
-      'partial'
-    );
+  // Summary/Transcript section - use incremental paragraph rendering
+  if (sections.transcript || sections.transcriptPartial) {
+    const content = sections.transcript || sections.transcriptPartial;
+    const isPartial = !sections.transcript;
+    updateSummarySection(container, content, isPartial);
   } else {
     // Show loading placeholder
     ensureSection(container, 'summary', () => createLoadingSection('Summary'), 'loading');
@@ -231,6 +220,154 @@ function ensureSection(container, sectionId, createFn, status = 'loading') {
     newSection.setAttribute('data-section', sectionId);
     newSection.setAttribute('data-status', status);
     section.replaceWith(newSection);
+  }
+}
+
+/**
+ * Update Summary section incrementally - only add/update changed paragraphs
+ * @param {HTMLElement} container - Parent container
+ * @param {string} content - The transcript content
+ * @param {boolean} isPartial - Whether content is still streaming
+ */
+function updateSummarySection(container, content, isPartial) {
+  let section = container.querySelector('[data-section="summary"]');
+
+  // Create section if it doesn't exist or is a loading placeholder
+  if (!section || section.getAttribute('data-status') === 'loading') {
+    if (section) section.remove();
+    section = document.createElement('div');
+    section.setAttribute('data-section', 'summary');
+    section.setAttribute('data-status', isPartial ? 'partial' : 'stable');
+    section.className = isPartial
+      ? 'streaming-section streaming-section-partial'
+      : 'streaming-section streaming-section-complete';
+
+    const h2 = document.createElement('h2');
+    h2.setAttribute('data-element', 'header');
+    h2.textContent = 'Summary';
+    if (isPartial) {
+      const spinner = document.createElement('span');
+      spinner.className = 'mini-spinner inline-spinner';
+      h2.appendChild(spinner);
+    }
+    section.appendChild(h2);
+
+    // Content container for paragraphs
+    const contentDiv = document.createElement('div');
+    contentDiv.setAttribute('data-element', 'content');
+    section.appendChild(contentDiv);
+
+    container.appendChild(section);
+  }
+
+  // Update status and header spinner
+  const currentStatus = section.getAttribute('data-status');
+  if (currentStatus === 'stable') {
+    // Already complete, don't update
+    return;
+  }
+
+  // Update section status
+  section.setAttribute('data-status', isPartial ? 'partial' : 'stable');
+  section.className = isPartial
+    ? 'streaming-section streaming-section-partial'
+    : 'streaming-section streaming-section-complete';
+
+  // Update header spinner
+  const header = section.querySelector('[data-element="header"]');
+  const existingSpinner = header.querySelector('.inline-spinner');
+  if (isPartial && !existingSpinner) {
+    const spinner = document.createElement('span');
+    spinner.className = 'mini-spinner inline-spinner';
+    header.appendChild(spinner);
+  } else if (!isPartial && existingSpinner) {
+    existingSpinner.remove();
+  }
+
+  // Get content container
+  const contentDiv = section.querySelector('[data-element="content"]');
+
+  // Parse paragraphs from content
+  const paragraphs = content.split('\n\n').filter(p => p.trim());
+
+  // Get existing paragraph elements
+  const existingParas = contentDiv.querySelectorAll('[data-para-id]');
+  const existingCount = existingParas.length;
+
+  // Update or add paragraphs
+  paragraphs.forEach((p, index) => {
+    const trimmed = p.trim();
+    const paraId = `para-${index}`;
+    let paraEl = contentDiv.querySelector(`[data-para-id="${paraId}"]`);
+
+    // Determine if this is the last paragraph (might still be streaming)
+    const isLastPara = index === paragraphs.length - 1;
+    const isStreaming = isPartial && isLastPara;
+
+    if (!paraEl) {
+      // Create new paragraph element
+      paraEl = createParagraphElement(trimmed, paraId, isStreaming);
+      contentDiv.appendChild(paraEl);
+    } else if (isStreaming || paraEl.getAttribute('data-streaming') === 'true') {
+      // Update streaming paragraph content
+      updateParagraphContent(paraEl, trimmed, isStreaming);
+    }
+    // Completed paragraphs are never updated (stable)
+  });
+
+  // Remove any extra paragraphs (shouldn't happen, but safety check)
+  for (let i = paragraphs.length; i < existingCount; i++) {
+    const extra = contentDiv.querySelector(`[data-para-id="para-${i}"]`);
+    if (extra) extra.remove();
+  }
+}
+
+/**
+ * Create a paragraph element based on content type
+ */
+function createParagraphElement(text, paraId, isStreaming) {
+  let el;
+  if (text.startsWith('## ')) {
+    el = document.createElement('h3');
+    el.textContent = text.slice(3);
+  } else if (text.startsWith('### ')) {
+    el = document.createElement('h4');
+    el.textContent = text.slice(4);
+  } else {
+    el = document.createElement('p');
+    el.textContent = text;
+  }
+  el.setAttribute('data-para-id', paraId);
+  el.setAttribute('data-streaming', isStreaming ? 'true' : 'false');
+  return el;
+}
+
+/**
+ * Update paragraph content (only for streaming paragraphs)
+ */
+function updateParagraphContent(el, text, isStreaming) {
+  // Determine expected tag based on content
+  let expectedTag = 'P';
+  let displayText = text;
+  if (text.startsWith('## ')) {
+    expectedTag = 'H3';
+    displayText = text.slice(3);
+  } else if (text.startsWith('### ')) {
+    expectedTag = 'H4';
+    displayText = text.slice(4);
+  }
+
+  // If tag type changed, recreate element
+  if (el.tagName !== expectedTag) {
+    const newEl = document.createElement(expectedTag.toLowerCase());
+    newEl.setAttribute('data-para-id', el.getAttribute('data-para-id'));
+    newEl.setAttribute('data-streaming', isStreaming ? 'true' : 'false');
+    newEl.textContent = displayText;
+    el.replaceWith(newEl);
+  } else {
+    // Just update content and streaming status
+    el.textContent = displayText;
+    el.setAttribute('data-streaming', isStreaming ? 'true' : 'false');
   }
 }
 
@@ -306,46 +443,6 @@ function createActionsSection(items, isPartial) {
     list.appendChild(li);
   });
   section.appendChild(list);
-
-  return section;
-}
-
-/**
- * Create Summary section (transcript content)
- */
-function createSummarySection(content, isPartial) {
-  const section = document.createElement('div');
-  section.className = isPartial
-    ? 'streaming-section streaming-section-partial'
-    : 'streaming-section streaming-section-complete';
-
-  const h2 = document.createElement('h2');
-  h2.textContent = 'Summary';
-  if (isPartial) {
-    const spinner = document.createElement('span');
-    spinner.className = 'mini-spinner inline-spinner';
-    h2.appendChild(spinner);
-  }
-  section.appendChild(h2);
-
-  // Parse the transcript markdown
-  const paragraphs = content.split('\n\n').filter(p => p.trim());
-  paragraphs.forEach(p => {
-    const trimmed = p.trim();
-    if (trimmed.startsWith('## ')) {
-      const h3 = document.createElement('h3');
-      h3.textContent = trimmed.slice(3);
-      section.appendChild(h3);
-    } else if (trimmed.startsWith('### ')) {
-      const h4 = document.createElement('h4');
-      h4.textContent = trimmed.slice(4);
-      section.appendChild(h4);
-    } else {
-      const para = document.createElement('p');
-      para.textContent = trimmed;
-      section.appendChild(para);
-    }
-  });
 
   return section;
 }

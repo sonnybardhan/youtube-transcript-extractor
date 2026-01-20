@@ -5,26 +5,56 @@
 
 // Throttled rendering state
 let lastRenderedSections = null;
-let renderTimeout = null;
-const RENDER_INTERVAL = 150; // ms between renders
+let lastRenderTime = 0;
+let pendingRender = null;
+const RENDER_INTERVAL = 100; // ms between renders (reduced for smoother streaming)
 
 /**
- * Throttled render to prevent flickering during streaming
- * Only renders every RENDER_INTERVAL ms and when sections actually change
+ * Throttled render using leading+trailing pattern
+ * - First change renders immediately
+ * - Subsequent changes throttled to every RENDER_INTERVAL ms
+ * - Ensures final state is always rendered
  * @param {object} sections - Parsed sections from streaming
  * @param {string} title - Video title
  * @param {function} renderFn - The render function to call
  */
+// Track if a trailing render is scheduled
+let trailingTimeoutId = null;
+
 export function throttledRender(sections, title, renderFn) {
   const sectionsKey = JSON.stringify(sections);
   if (sectionsKey === lastRenderedSections) return;
 
-  if (renderTimeout) clearTimeout(renderTimeout);
+  const now = Date.now();
+  const timeSinceLastRender = now - lastRenderTime;
 
-  renderTimeout = setTimeout(() => {
+  // Always store the latest state for trailing render
+  pendingRender = { sections, title, sectionsKey };
+
+  if (timeSinceLastRender >= RENDER_INTERVAL) {
+    // Enough time has passed - render immediately (leading edge)
+    if (trailingTimeoutId) {
+      clearTimeout(trailingTimeoutId);
+      trailingTimeoutId = null;
+    }
+    lastRenderTime = now;
     lastRenderedSections = sectionsKey;
     renderFn(sections, title);
-  }, RENDER_INTERVAL);
+    pendingRender = null;
+  } else if (!trailingTimeoutId) {
+    // Schedule a trailing render for when the interval completes
+    const delay = RENDER_INTERVAL - timeSinceLastRender;
+    trailingTimeoutId = setTimeout(() => {
+      trailingTimeoutId = null;
+      if (pendingRender) {
+        lastRenderTime = Date.now();
+        lastRenderedSections = pendingRender.sectionsKey;
+        renderFn(pendingRender.sections, pendingRender.title);
+        pendingRender = null;
+      }
+    }, delay);
+  }
+  // If trailing timeout already scheduled, just update pendingRender (done above)
 }
 
 /**
@@ -34,10 +64,11 @@ export function throttledRender(sections, title, renderFn) {
  * @param {function} renderFn - The render function to call
  */
 export function flushRender(sections, title, renderFn) {
-  if (renderTimeout) {
-    clearTimeout(renderTimeout);
-    renderTimeout = null;
+  if (trailingTimeoutId) {
+    clearTimeout(trailingTimeoutId);
+    trailingTimeoutId = null;
   }
+  pendingRender = null;
   lastRenderedSections = JSON.stringify(sections);
   renderFn(sections, title);
 }
@@ -47,10 +78,12 @@ export function flushRender(sections, title, renderFn) {
  */
 export function resetThrottleState() {
   lastRenderedSections = null;
-  if (renderTimeout) {
-    clearTimeout(renderTimeout);
-    renderTimeout = null;
+  lastRenderTime = 0;
+  if (trailingTimeoutId) {
+    clearTimeout(trailingTimeoutId);
+    trailingTimeoutId = null;
   }
+  pendingRender = null;
 }
 
 /**
