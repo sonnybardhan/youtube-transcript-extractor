@@ -654,8 +654,8 @@ app.get("/api/history/:filename", (req, res) => {
   if (existsSync(signalPath)) {
     try {
       signal = JSON.parse(readFileSync(signalPath, "utf-8"));
-    } catch {
-      // Ignore JSON parse errors
+    } catch (err) {
+      console.error(`Failed to parse signal file for ${filename}:`, err.message);
     }
   }
 
@@ -726,7 +726,8 @@ app.get("/api/history/:filename/annotations", (req, res) => {
   try {
     const annotations = JSON.parse(readFileSync(annotationsPath, "utf-8"));
     res.json(annotations);
-  } catch {
+  } catch (err) {
+    console.error(`Failed to parse annotations for ${filename}:`, err.message);
     res.json([]);
   }
 });
@@ -758,7 +759,8 @@ app.post("/api/history/:filename/annotations", (req, res) => {
   if (existsSync(annotationsPath)) {
     try {
       annotations = JSON.parse(readFileSync(annotationsPath, "utf-8"));
-    } catch {
+    } catch (err) {
+      console.error(`Failed to parse existing annotations for ${filename}:`, err.message);
       annotations = [];
     }
   }
@@ -808,7 +810,8 @@ app.delete("/api/history/:filename/annotations/:annotationId", (req, res) => {
     }
 
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error(`Failed to delete annotation ${annotationId} from ${filename}:`, err.message);
     res.status(500).json({ error: "Failed to delete annotation" });
   }
 });
@@ -1169,8 +1172,8 @@ app.get("/api/metadata/preview", (req, res) => {
   if (req.query.files) {
     try {
       filterFiles = JSON.parse(req.query.files);
-    } catch {
-      // Ignore invalid JSON
+    } catch (err) {
+      console.error('Failed to parse files query parameter:', err.message);
     }
   }
 
@@ -1195,8 +1198,8 @@ app.get("/api/metadata/preview", (req, res) => {
       (content.entities || []).forEach((e) => allEntities.add(e));
       (content.suggestedTags || []).forEach((t) => allTags.add(t));
       if (content.category) allCategories.add(content.category);
-    } catch {
-      // Skip files that can't be parsed
+    } catch (err) {
+      console.error(`Failed to parse metadata file ${filename}:`, err.message);
     }
   });
 
@@ -1356,7 +1359,8 @@ app.get("/api/analyses", (_req, res) => {
           date: meta.createdAt || (stat ? stat.mtime.toISOString() : new Date().toISOString()),
           sourceFiles: meta.sourceFiles || [],
         };
-      } catch {
+      } catch (err) {
+        console.error(`Failed to parse analysis metadata ${metaFilename}:`, err.message);
         return null;
       }
     })
@@ -1396,8 +1400,8 @@ app.get("/api/analyses/:filename", (req, res) => {
   if (existsSync(metaPath)) {
     try {
       meta = JSON.parse(readFileSync(metaPath, "utf-8"));
-    } catch {
-      // Ignore JSON parse errors
+    } catch (err) {
+      console.error(`Failed to parse analysis metadata for ${filename}:`, err.message);
     }
   }
 
