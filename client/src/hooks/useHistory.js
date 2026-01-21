@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { fetchHistoryItem, deleteHistoryItem as apiDeleteHistoryItem, fetchAnnotations } from '../utils/api';
+import { fetchHistoryItem, deleteHistoryItem as apiDeleteHistoryItem, fetchAnnotations, rebuildMetadataIndex } from '../utils/api';
 import { parseMetadataForRerun, parseKnowledgeGraph } from '../utils/markdown';
 
 export function useHistory() {
@@ -81,6 +81,9 @@ export function useHistory() {
           await apiDeleteHistoryItem(filename);
           await reloadHistory();
 
+          // Rebuild metadata index after deletion
+          rebuildMetadataIndex().catch(() => {});
+
           // If the deleted item was active, clear or select next
           if (wasActive) {
             const remainingHistory = history.filter((h) => h.filename !== filename);
@@ -122,6 +125,9 @@ export function useHistory() {
 
         actions.setSelectedItems(new Set());
         await reloadHistory();
+
+        // Rebuild metadata index after deletion
+        rebuildMetadataIndex().catch(() => {});
 
         // Auto-select next available item if current was deleted
         if (deletingCurrent && !errors.includes(currentFilename)) {

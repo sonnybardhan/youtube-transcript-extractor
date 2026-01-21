@@ -14,7 +14,7 @@ export const HistoryItem = memo(function HistoryItem({
   const wasShiftClickRef = useRef(false);
 
   const handleClick = (e) => {
-    if (e.target.closest('.delete-btn') || e.target.closest('.history-checkbox')) {
+    if (e.target.closest('.delete-btn') || e.target.closest('.history-checkbox-label')) {
       return;
     }
     onSelect(file.filename);
@@ -50,14 +50,15 @@ export const HistoryItem = memo(function HistoryItem({
 
   return (
     <div className={className} data-filename={file.filename} onClick={handleClick}>
-      <input
-        type="checkbox"
-        className="history-checkbox"
-        title="Select for bulk delete (Shift+Click to select range)"
-        checked={isSelected}
-        onClick={handleCheckboxClick}
-        onChange={handleCheckboxChange}
-      />
+      <label className="history-checkbox-label" title="Select for bulk delete (Shift+Click to select range)">
+        <input
+          type="checkbox"
+          className="history-checkbox"
+          checked={isSelected}
+          onClick={handleCheckboxClick}
+          onChange={handleCheckboxChange}
+        />
+      </label>
 
       <div className="history-item-content">
         <div className="history-item-title" title={file.title}>

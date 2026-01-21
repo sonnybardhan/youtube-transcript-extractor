@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { AnnotationItem } from '../Annotations/AnnotationItem';
 import { PendingAnnotation } from '../Annotations/PendingAnnotation';
 import { useAnnotation } from '../../hooks/useAnnotation';
-import { fetchRelatedVideos, fetchHistoryItem, fetchAnnotations } from '../../utils/api';
+import { fetchRelatedVideos, fetchHistoryItem, fetchAnnotations, rebuildMetadataIndex } from '../../utils/api';
 import { parseMetadataForRerun, parseKnowledgeGraph } from '../../utils/markdown';
 
 function TranscriptTab({ metadata, transcript }) {
@@ -168,29 +168,42 @@ function AnnotationsTab({ annotations, pendingAnnotation, currentFilename, onDel
 function RelatedTab({ currentFilename, onNavigate }) {
   const [related, setRelated] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRebuilding, setIsRebuilding] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const loadRelated = useCallback(async () => {
     if (!currentFilename) {
       setRelated([]);
       return;
     }
 
-    const loadRelated = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const result = await fetchRelatedVideos(currentFilename, 5);
-        setRelated(result.related || []);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadRelated();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await fetchRelatedVideos(currentFilename, 5);
+      setRelated(result.related || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   }, [currentFilename]);
+
+  useEffect(() => {
+    loadRelated();
+  }, [loadRelated]);
+
+  const handleRebuildIndex = async () => {
+    setIsRebuilding(true);
+    try {
+      await rebuildMetadataIndex();
+      await loadRelated();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsRebuilding(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -201,55 +214,81 @@ function RelatedTab({ currentFilename, onNavigate }) {
     );
   }
 
+  const updateButton = (
+    <button
+      className="update-index-btn"
+      onClick={handleRebuildIndex}
+      disabled={isRebuilding}
+    >
+      <span className="material-symbols-outlined">{isRebuilding ? 'sync' : 'refresh'}</span>
+      <span>{isRebuilding ? 'Updating...' : 'Update Index'}</span>
+    </button>
+  );
+
   if (error) {
     return (
-      <div className="no-content">
-        <span className="material-symbols-outlined">error</span>
-        <p>Could not load related videos</p>
-        <p className="hint">{error}</p>
+      <div className="related-tab-container">
+        <div className="related-tab-header">
+          {updateButton}
+        </div>
+        <div className="no-content">
+          <span className="material-symbols-outlined">error</span>
+          <p>Could not load related videos</p>
+          <p className="hint">{error}</p>
+        </div>
       </div>
     );
   }
 
   if (related.length === 0) {
     return (
-      <div className="no-content">
-        <span className="material-symbols-outlined">link_off</span>
-        <p>No related videos found</p>
-        <p className="hint">Build the metadata index to discover connections between videos</p>
+      <div className="related-tab-container">
+        <div className="related-tab-header">
+          {updateButton}
+        </div>
+        <div className="no-content">
+          <span className="material-symbols-outlined">link_off</span>
+          <p>No related videos found</p>
+          <p className="hint">Click "Update Index" to discover connections between videos</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="related-list">
-      {related.map((video) => (
-        <button
-          key={video.filename}
-          className="related-item"
-          onClick={() => onNavigate(video.filename)}
-        >
-          <div className="related-item-header">
-            <span className="related-title">{video.title}</span>
-            <span className="related-score" title="Similarity score">
-              {video.score}
-            </span>
-          </div>
-          {(video.sharedConcepts.length > 0 || video.sharedTags.length > 0 || video.sharedEntities.length > 0) && (
-            <div className="related-shared">
-              {video.sharedConcepts.slice(0, 3).map((c) => (
-                <span key={c} className="chip concept-chip small">{c}</span>
-              ))}
-              {video.sharedTags.slice(0, 2).map((t) => (
-                <span key={t} className="chip tag-chip small">{t}</span>
-              ))}
-              {video.sharedEntities.slice(0, 2).map((e) => (
-                <span key={e} className="chip entity-chip small">{e}</span>
-              ))}
+    <div className="related-tab-container">
+      <div className="related-tab-header">
+        {updateButton}
+      </div>
+      <div className="related-list">
+        {related.map((video) => (
+          <button
+            key={video.filename}
+            className="related-item"
+            onClick={() => onNavigate(video.filename)}
+          >
+            <div className="related-item-header">
+              <span className="related-title">{video.title}</span>
+              <span className="related-score" title="Similarity score">
+                {video.score}
+              </span>
             </div>
-          )}
-        </button>
-      ))}
+            {(video.sharedConcepts.length > 0 || video.sharedTags.length > 0 || video.sharedEntities.length > 0) && (
+              <div className="related-shared">
+                {video.sharedConcepts.slice(0, 3).map((c) => (
+                  <span key={c} className="chip concept-chip small">{c}</span>
+                ))}
+                {video.sharedTags.slice(0, 2).map((t) => (
+                  <span key={t} className="chip tag-chip small">{t}</span>
+                ))}
+                {video.sharedEntities.slice(0, 2).map((e) => (
+                  <span key={e} className="chip entity-chip small">{e}</span>
+                ))}
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

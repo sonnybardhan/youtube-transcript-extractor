@@ -208,6 +208,18 @@ body {
   gap: 8px;
 }
 
+.history-checkbox-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: -8px;
+  margin-right: -4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 .history-checkbox {
   width: 16px;
   height: 16px;
@@ -4469,6 +4481,55 @@ html.light .preview-chip.category-chip {
 }
 
 /* Related Videos Tab */
+.related-tab-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.related-tab-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-dark);
+  flex-shrink: 0;
+}
+
+.update-index-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.update-index-btn:hover:not(:disabled) {
+  background: var(--surface-light);
+  color: var(--text-main);
+  border-color: var(--primary);
+}
+
+.update-index-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.update-index-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.update-index-btn:disabled .material-symbols-outlined {
+  animation: spin 1s linear infinite;
+}
+
 .related-loading {
   display: flex;
   flex-direction: column;
