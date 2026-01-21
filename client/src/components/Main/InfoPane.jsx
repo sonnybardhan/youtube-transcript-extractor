@@ -1,7 +1,10 @@
+import { useEffect, useState, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { AnnotationItem } from '../Annotations/AnnotationItem';
 import { PendingAnnotation } from '../Annotations/PendingAnnotation';
 import { useAnnotation } from '../../hooks/useAnnotation';
+import { fetchRelatedVideos, fetchHistoryItem, fetchAnnotations } from '../../utils/api';
+import { parseMetadataForRerun, parseKnowledgeGraph } from '../../utils/markdown';
 
 function TranscriptTab({ metadata, transcript }) {
   const content = metadata?.transcriptFormatted || metadata?.transcript || transcript;
@@ -162,6 +165,95 @@ function AnnotationsTab({ annotations, pendingAnnotation, currentFilename, onDel
   );
 }
 
+function RelatedTab({ currentFilename, onNavigate }) {
+  const [related, setRelated] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!currentFilename) {
+      setRelated([]);
+      return;
+    }
+
+    const loadRelated = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await fetchRelatedVideos(currentFilename, 5);
+        setRelated(result.related || []);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadRelated();
+  }, [currentFilename]);
+
+  if (isLoading) {
+    return (
+      <div className="related-loading">
+        <span className="spinner" />
+        <p>Finding related videos...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="no-content">
+        <span className="material-symbols-outlined">error</span>
+        <p>Could not load related videos</p>
+        <p className="hint">{error}</p>
+      </div>
+    );
+  }
+
+  if (related.length === 0) {
+    return (
+      <div className="no-content">
+        <span className="material-symbols-outlined">link_off</span>
+        <p>No related videos found</p>
+        <p className="hint">Build the metadata index to discover connections between videos</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="related-list">
+      {related.map((video) => (
+        <button
+          key={video.filename}
+          className="related-item"
+          onClick={() => onNavigate(video.filename)}
+        >
+          <div className="related-item-header">
+            <span className="related-title">{video.title}</span>
+            <span className="related-score" title="Similarity score">
+              {video.score}
+            </span>
+          </div>
+          {(video.sharedConcepts.length > 0 || video.sharedTags.length > 0 || video.sharedEntities.length > 0) && (
+            <div className="related-shared">
+              {video.sharedConcepts.slice(0, 3).map((c) => (
+                <span key={c} className="chip concept-chip small">{c}</span>
+              ))}
+              {video.sharedTags.slice(0, 2).map((t) => (
+                <span key={t} className="chip tag-chip small">{t}</span>
+              ))}
+              {video.sharedEntities.slice(0, 2).map((e) => (
+                <span key={e} className="chip entity-chip small">{e}</span>
+              ))}
+            </div>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function InfoPane() {
   const { state, actions } = useApp();
   const { infoPaneCollapsed, activeInfoTab, currentMetadata, originalTranscript, signalData, annotations, currentFilename, pendingAnnotation } = state;
@@ -175,6 +267,7 @@ export function InfoPane() {
     { id: 'metadata', label: 'Metadata', icon: 'info' },
     { id: 'signal', label: 'Signal', icon: 'sensors' },
     { id: 'annotations', label: 'Notes', icon: 'edit_note', count: annotationCount },
+    { id: 'related', label: 'Related', icon: 'hub' },
   ];
 
   const handleDeleteAnnotation = async (annotationId) => {
@@ -196,6 +289,39 @@ export function InfoPane() {
   const handleToggle = () => {
     actions.setInfoPaneCollapsed(!infoPaneCollapsed);
   };
+
+  const handleNavigateToRelated = useCallback(async (filename) => {
+    try {
+      const [data, fileAnnotations] = await Promise.all([
+        fetchHistoryItem(filename),
+        fetchAnnotations(filename).catch(() => []),
+      ]);
+
+      const titleMatch = data.content.match(/^#\s+(.+)$/m);
+      const title = titleMatch ? titleMatch[1] : filename.replace('.md', '');
+      const parsedMetadata = parseMetadataForRerun(data.content, title);
+
+      actions.setCurrentExtraction({
+        markdown: data.content,
+        filename,
+        metadata: parsedMetadata,
+        transcript: parsedMetadata.transcript || '',
+        model: null,
+      });
+
+      if (data.signal) {
+        actions.setSignalData(data.signal);
+      } else {
+        const knowledgeGraph = parseKnowledgeGraph(data.content);
+        actions.setSignalData(knowledgeGraph);
+      }
+
+      actions.setAnnotations(fileAnnotations);
+      actions.setView('results');
+    } catch (err) {
+      actions.showToast(err.message);
+    }
+  }, [actions]);
 
   return (
     <aside className={`info-pane ${infoPaneCollapsed ? 'collapsed' : ''}`}>
@@ -242,6 +368,12 @@ export function InfoPane() {
             onSave={savePendingAnnotation}
             onDiscard={discardPendingAnnotation}
             onCancel={cancelStream}
+          />
+        </div>
+        <div className={`info-tab-content ${activeInfoTab === 'related' ? 'active' : ''}`}>
+          <RelatedTab
+            currentFilename={currentFilename}
+            onNavigate={handleNavigateToRelated}
           />
         </div>
       </div>

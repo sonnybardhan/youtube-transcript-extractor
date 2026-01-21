@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { useHistory } from '../../hooks/useHistory';
+import { useMultiSummaryAnalysis } from '../../hooks/useMultiSummaryAnalysis';
 import { HistoryItem } from './HistoryItem';
 
 export function HistorySection() {
@@ -19,6 +20,7 @@ export function HistorySection() {
     processingFilename,
   } = useHistory();
 
+  const { openModal: openAnalyzeModal } = useMultiSummaryAnalysis();
   const lastClickedRef = useRef(null);
 
   const handleSelect = useCallback((filename) => {
@@ -56,14 +58,24 @@ export function HistorySection() {
           />
           <span className="history-label">SUMMARIES</span>
         </div>
-        <button
-          className={`bulk-delete-btn ${selectedItems.size === 0 ? 'hidden' : ''}`}
-          title="Delete selected"
-          onClick={deleteSelectedItems}
-        >
-          <span className="material-symbols-outlined">delete</span>
-          <span>{selectedItems.size}</span>
-        </button>
+        <div className="history-header-actions">
+          <button
+            className={`analyze-btn ${selectedItems.size < 2 ? 'hidden' : ''}`}
+            title="Analyze selected summaries"
+            onClick={openAnalyzeModal}
+          >
+            <span className="material-symbols-outlined">query_stats</span>
+            <span>Analyze</span>
+          </button>
+          <button
+            className={`bulk-delete-btn ${selectedItems.size === 0 ? 'hidden' : ''}`}
+            title="Delete selected"
+            onClick={deleteSelectedItems}
+          >
+            <span className="material-symbols-outlined">delete</span>
+            <span>{selectedItems.size}</span>
+          </button>
+        </div>
       </div>
 
       <div className="history-search">
