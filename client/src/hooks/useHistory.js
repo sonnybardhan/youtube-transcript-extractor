@@ -60,6 +60,7 @@ export function useHistory() {
       actions.setAnnotations(annotations);
 
       actions.setView('results');
+      actions.setCurrentPage('main'); // Navigate to main page to view summary
       return { success: true, content: data.content, title };
     } catch (err) {
       actions.showToast(err.message);
