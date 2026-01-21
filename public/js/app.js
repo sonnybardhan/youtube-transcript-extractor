@@ -65,7 +65,10 @@ function setupEventListeners() {
   elements.extractBtn.addEventListener('click', handleExtract);
 
   // New extraction button
-  elements.newExtractionBtn.addEventListener('click', showInputView);
+  elements.newExtractionBtn.addEventListener('click', () => {
+    showInputView();
+    elements.urlsInput.focus();
+  });
 
   // Back to input
   elements.backToInput.addEventListener('click', (e) => {

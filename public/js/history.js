@@ -387,9 +387,14 @@ export async function loadHistoryItem(filename) {
     // Update info pane with transcript and metadata
     updateInfoPane(parsedMetadata);
 
-    // Parse and display Knowledge Graph data in Signal tab
-    const knowledgeGraph = parseKnowledgeGraph(data.content);
-    updateSignalPane(knowledgeGraph);
+    // Display signal data if available (from .signal.json file)
+    // Falls back to parsing from markdown for backwards compatibility
+    if (data.signal) {
+      updateSignalPane(data.signal);
+    } else {
+      const knowledgeGraph = parseKnowledgeGraph(data.content);
+      updateSignalPane(knowledgeGraph);
+    }
 
     // Update active state
     elements.historyList.querySelectorAll('.history-item').forEach(item => {

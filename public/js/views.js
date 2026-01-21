@@ -187,28 +187,28 @@ export function renderStreamingSections(sections, title) {
     ensureSection(container, 'tldr', () => createLoadingSection('TLDR'), 'loading');
   }
 
-  // Key Insights section - show loading, then partial, then complete
+  // Key Insights section - use incremental list rendering
   if (sections.keyInsights && sections.keyInsights.length > 0) {
-    const status = sections.keyInsightsPartial ? 'partial' : 'stable';
-    ensureSection(
+    updateListSection(
       container,
       'keyInsights',
-      () => createInsightsSection(sections.keyInsights, sections.keyInsightsPartial),
-      status
+      'Key Insights',
+      sections.keyInsights,
+      sections.keyInsightsPartial
     );
   } else {
     // Show loading placeholder
     ensureSection(container, 'keyInsights', () => createLoadingSection('Key Insights'), 'loading');
   }
 
-  // Action Items section - show loading, then partial, then complete
+  // Action Items section - use incremental list rendering
   if (sections.actionItems && sections.actionItems.length > 0) {
-    const status = sections.actionItemsPartial ? 'partial' : 'stable';
-    ensureSection(
+    updateListSection(
       container,
       'actionItems',
-      () => createActionsSection(sections.actionItems, sections.actionItemsPartial),
-      status
+      'Action Items & Takeaways',
+      sections.actionItems,
+      sections.actionItemsPartial
     );
   } else {
     // Show loading placeholder
@@ -281,14 +281,14 @@ function ensureSection(container, sectionId, createFn, status = 'loading') {
  */
 function updateSummarySection(container, content, isPartial) {
   let section = container.querySelector('[data-section="summary"]');
+  const existingSection = section;
 
   // Create section if it doesn't exist or is a loading placeholder
   if (!section || section.getAttribute('data-status') === 'loading') {
-    if (section) section.remove();
-    section = document.createElement('div');
-    section.setAttribute('data-section', 'summary');
-    section.setAttribute('data-status', isPartial ? 'partial' : 'stable');
-    section.className = isPartial
+    const newSection = document.createElement('div');
+    newSection.setAttribute('data-section', 'summary');
+    newSection.setAttribute('data-status', isPartial ? 'partial' : 'stable');
+    newSection.className = isPartial
       ? 'streaming-section streaming-section-partial'
       : 'streaming-section streaming-section-complete';
 
@@ -300,14 +300,20 @@ function updateSummarySection(container, content, isPartial) {
       spinner.className = 'mini-spinner inline-spinner';
       h2.appendChild(spinner);
     }
-    section.appendChild(h2);
+    newSection.appendChild(h2);
 
     // Content container for paragraphs
     const contentDiv = document.createElement('div');
     contentDiv.setAttribute('data-element', 'content');
-    section.appendChild(contentDiv);
+    newSection.appendChild(contentDiv);
 
-    container.appendChild(section);
+    // Replace existing section to maintain order, or append if none exists
+    if (existingSection) {
+      existingSection.replaceWith(newSection);
+    } else {
+      container.appendChild(newSection);
+    }
+    section = newSection;
   }
 
   // Update status and header spinner
@@ -443,61 +449,96 @@ function createTldrSection(tldr) {
 }
 
 /**
- * Create Key Insights section
+ * Update a list section (Key Insights or Action Items) incrementally
+ * Only adds new items, doesn't replace existing ones
+ * @param {HTMLElement} container - Parent container
+ * @param {string} sectionId - Section identifier ('keyInsights' or 'actionItems')
+ * @param {string} title - Section title
+ * @param {string[]} items - Array of list items
+ * @param {boolean} isPartial - Whether content is still streaming
  */
-function createInsightsSection(insights, isPartial) {
-  const section = document.createElement('div');
+function updateListSection(container, sectionId, title, items, isPartial) {
+  let section = container.querySelector(`[data-section="${sectionId}"]`);
+  const existingSection = section;
+
+  // Create section if it doesn't exist or is a loading placeholder
+  if (!section || section.getAttribute('data-status') === 'loading') {
+    const newSection = document.createElement('div');
+    newSection.setAttribute('data-section', sectionId);
+    newSection.setAttribute('data-status', isPartial ? 'partial' : 'stable');
+    newSection.className = isPartial
+      ? 'streaming-section streaming-section-partial'
+      : 'streaming-section streaming-section-complete';
+
+    const h2 = document.createElement('h2');
+    h2.setAttribute('data-element', 'header');
+    h2.textContent = title;
+    if (isPartial) {
+      const spinner = document.createElement('span');
+      spinner.className = 'mini-spinner inline-spinner';
+      h2.appendChild(spinner);
+    }
+    newSection.appendChild(h2);
+
+    // Content container for list items
+    const list = document.createElement('ul');
+    list.setAttribute('data-element', 'content');
+    newSection.appendChild(list);
+
+    // Replace existing section to maintain order, or append if none exists
+    if (existingSection) {
+      existingSection.replaceWith(newSection);
+    } else {
+      container.appendChild(newSection);
+    }
+    section = newSection;
+  }
+
+  // Update status and header spinner
+  const currentStatus = section.getAttribute('data-status');
+  if (currentStatus === 'stable') {
+    // Already complete, don't update
+    return;
+  }
+
+  // Update section status
+  section.setAttribute('data-status', isPartial ? 'partial' : 'stable');
   section.className = isPartial
     ? 'streaming-section streaming-section-partial'
     : 'streaming-section streaming-section-complete';
 
-  const h2 = document.createElement('h2');
-  h2.textContent = 'Key Insights';
-  if (isPartial) {
+  // Update header spinner
+  const header = section.querySelector('[data-element="header"]');
+  const existingSpinner = header.querySelector('.inline-spinner');
+  if (isPartial && !existingSpinner) {
     const spinner = document.createElement('span');
     spinner.className = 'mini-spinner inline-spinner';
-    h2.appendChild(spinner);
+    header.appendChild(spinner);
+  } else if (!isPartial && existingSpinner) {
+    existingSpinner.remove();
   }
-  section.appendChild(h2);
 
-  const list = document.createElement('ul');
-  insights.forEach(insight => {
-    const li = document.createElement('li');
-    setMarkdownContent(li, insight);
-    list.appendChild(li);
+  // Get list container
+  const list = section.querySelector('[data-element="content"]');
+
+  // Get existing list items
+  const existingItems = list.querySelectorAll('[data-item-id]');
+  const existingCount = existingItems.length;
+
+  // Add new items (only add, don't update existing)
+  items.forEach((item, index) => {
+    const itemId = `item-${index}`;
+    let li = list.querySelector(`[data-item-id="${itemId}"]`);
+
+    if (!li) {
+      // Create new list item
+      li = document.createElement('li');
+      li.setAttribute('data-item-id', itemId);
+      setMarkdownContent(li, item);
+      list.appendChild(li);
+    }
+    // Existing items are never updated (they're already complete)
   });
-  section.appendChild(list);
-
-  return section;
-}
-
-/**
- * Create Action Items section
- */
-function createActionsSection(items, isPartial) {
-  const section = document.createElement('div');
-  section.className = isPartial
-    ? 'streaming-section streaming-section-partial'
-    : 'streaming-section streaming-section-complete';
-
-  const h2 = document.createElement('h2');
-  h2.textContent = 'Action Items & Takeaways';
-  if (isPartial) {
-    const spinner = document.createElement('span');
-    spinner.className = 'mini-spinner inline-spinner';
-    h2.appendChild(spinner);
-  }
-  section.appendChild(h2);
-
-  const list = document.createElement('ul');
-  items.forEach(item => {
-    const li = document.createElement('li');
-    setMarkdownContent(li, item);
-    list.appendChild(li);
-  });
-  section.appendChild(list);
-
-  return section;
 }
 
 /**

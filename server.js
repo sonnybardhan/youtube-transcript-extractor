@@ -300,7 +300,17 @@ app.post("/api/extract/process/stream", async (req, res) => {
     // Update the file with final content (file was created at start of stream)
     writeFileSync(mdPath, output);
 
-    // Send completion event with parsed markdown
+    // Save signal metadata to separate JSON file for history loading
+    const signalData = {
+      concepts: llmContent?.concepts || [],
+      entities: llmContent?.entities || [],
+      category: llmContent?.category || null,
+      suggestedTags: llmContent?.suggestedTags || []
+    };
+    const signalPath = mdPath.replace('.md', '.signal.json');
+    writeFileSync(signalPath, JSON.stringify(signalData, null, 2));
+
+    // Send completion event with parsed markdown and signal data
     res.write(
       `data: ${JSON.stringify({
         complete: true,
@@ -309,6 +319,7 @@ app.post("/api/extract/process/stream", async (req, res) => {
         title,
         videoId,
         promptUsed,
+        signal: signalData,
       })}\n\n`
     );
     res.end();
@@ -435,6 +446,16 @@ app.post("/api/reprocess/stream", async (req, res) => {
     const newPath = join(tempDir, newFilename);
     writeFileSync(newPath, output);
 
+    // Save signal metadata to separate JSON file for history loading
+    const signalData = {
+      concepts: llmContent?.concepts || [],
+      entities: llmContent?.entities || [],
+      category: llmContent?.category || null,
+      suggestedTags: llmContent?.suggestedTags || []
+    };
+    const signalPath = newPath.replace('.md', '.signal.json');
+    writeFileSync(signalPath, JSON.stringify(signalData, null, 2));
+
     res.write(
       `data: ${JSON.stringify({
         complete: true,
@@ -442,6 +463,7 @@ app.post("/api/reprocess/stream", async (req, res) => {
         markdown: output,
         title,
         promptUsed,
+        signal: signalData,
       })}\n\n`
     );
     res.end();
@@ -611,7 +633,19 @@ app.get("/api/history/:filename", (req, res) => {
   }
 
   const content = readFileSync(filePath, "utf-8");
-  res.json({ filename, content });
+
+  // Also try to load signal data if available
+  let signal = null;
+  const signalPath = filePath.replace('.md', '.signal.json');
+  if (existsSync(signalPath)) {
+    try {
+      signal = JSON.parse(readFileSync(signalPath, "utf-8"));
+    } catch {
+      // Ignore JSON parse errors
+    }
+  }
+
+  res.json({ filename, content, signal });
 });
 
 // Delete extraction
@@ -631,6 +665,13 @@ app.delete("/api/history/:filename", (req, res) => {
   }
 
   unlinkSync(filePath);
+
+  // Also delete associated signal file if it exists
+  const signalPath = filePath.replace('.md', '.signal.json');
+  if (existsSync(signalPath)) {
+    unlinkSync(signalPath);
+  }
+
   res.json({ success: true });
 });
 

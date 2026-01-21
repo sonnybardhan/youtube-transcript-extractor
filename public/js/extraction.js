@@ -287,6 +287,10 @@ export async function processWithLLMStreaming(basicInfo, options) {
           setState('currentMarkdown', data.markdown);
           setState('currentFilename', data.filename);
           renderMarkdown(data.markdown);
+          // Update Signal pane with final data from completion event
+          if (data.signal) {
+            updateSignalPane(data.signal);
+          }
           await loadHistory();
           resolve();
         },

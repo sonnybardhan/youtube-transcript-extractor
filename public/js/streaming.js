@@ -100,17 +100,27 @@ export function parsePartialJSON(text) {
     sections.tldr = unescapeJsonString(tldrMatch[1]);
   }
 
-  // Try to extract keyInsights array if complete
-  const insightsMatch = text.match(/"keyInsights"\s*:\s*\[([\s\S]*?)\]/);
-  if (insightsMatch) {
+  // Try to extract keyInsights array - complete or partial
+  const insightsCompleteMatch = text.match(/"keyInsights"\s*:\s*\[([\s\S]*?)\]/);
+  if (insightsCompleteMatch) {
     try {
-      const insightsArray = JSON.parse('[' + insightsMatch[1] + ']');
+      const insightsArray = JSON.parse('[' + insightsCompleteMatch[1] + ']');
       if (Array.isArray(insightsArray) && insightsArray.length > 0) {
         sections.keyInsights = insightsArray;
       }
     } catch {
-      // Array not yet complete, try to extract individual items
-      const partialInsights = extractPartialArray(insightsMatch[1]);
+      // Array content malformed, try to extract individual items
+      const partialInsights = extractPartialArray(insightsCompleteMatch[1]);
+      if (partialInsights.length > 0) {
+        sections.keyInsights = partialInsights;
+        sections.keyInsightsPartial = true;
+      }
+    }
+  } else {
+    // Try to match partial array (started but not yet closed)
+    const insightsPartialMatch = text.match(/"keyInsights"\s*:\s*\[([\s\S]*)/);
+    if (insightsPartialMatch) {
+      const partialInsights = extractPartialArray(insightsPartialMatch[1]);
       if (partialInsights.length > 0) {
         sections.keyInsights = partialInsights;
         sections.keyInsightsPartial = true;
@@ -118,17 +128,27 @@ export function parsePartialJSON(text) {
     }
   }
 
-  // Try to extract actionItems array if complete
-  const actionsMatch = text.match(/"actionItems"\s*:\s*\[([\s\S]*?)\]/);
-  if (actionsMatch) {
+  // Try to extract actionItems array - complete or partial
+  const actionsCompleteMatch = text.match(/"actionItems"\s*:\s*\[([\s\S]*?)\]/);
+  if (actionsCompleteMatch) {
     try {
-      const actionsArray = JSON.parse('[' + actionsMatch[1] + ']');
+      const actionsArray = JSON.parse('[' + actionsCompleteMatch[1] + ']');
       if (Array.isArray(actionsArray) && actionsArray.length > 0) {
         sections.actionItems = actionsArray;
       }
     } catch {
-      // Array not yet complete
-      const partialActions = extractPartialArray(actionsMatch[1]);
+      // Array content malformed, try to extract individual items
+      const partialActions = extractPartialArray(actionsCompleteMatch[1]);
+      if (partialActions.length > 0) {
+        sections.actionItems = partialActions;
+        sections.actionItemsPartial = true;
+      }
+    }
+  } else {
+    // Try to match partial array (started but not yet closed)
+    const actionsPartialMatch = text.match(/"actionItems"\s*:\s*\[([\s\S]*)/);
+    if (actionsPartialMatch) {
+      const partialActions = extractPartialArray(actionsPartialMatch[1]);
       if (partialActions.length > 0) {
         sections.actionItems = partialActions;
         sections.actionItemsPartial = true;

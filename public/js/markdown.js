@@ -21,13 +21,30 @@ export function renderMarkdown(content, noTranscriptWarning = null) {
     setState('originalTranscript', '');
   }
 
-  // Extract metadata section
+  // Extract metadata section - merge with existing to preserve transcript fields
   const metadataMatch = content.match(/## Metadata\n\n([\s\S]*?)(?=\n## |$)/);
+  const existingMetadata = getState('currentMetadata') || {};
+  const originalTranscript = getState('originalTranscript');
+
   if (metadataMatch) {
-    setState('currentMetadata', parseMetadata(metadataMatch[1]));
+    const parsedMetadata = parseMetadata(metadataMatch[1]);
+    // Preserve transcript-related fields from existing metadata, or use extracted transcript
+    setState('currentMetadata', {
+      ...parsedMetadata,
+      transcript: existingMetadata.transcript || originalTranscript,
+      transcriptFormatted: existingMetadata.transcriptFormatted || originalTranscript,
+      hasTranscript: existingMetadata.hasTranscript ?? !!originalTranscript,
+      title: existingMetadata.title || parsedMetadata.title
+    });
     content = content.replace(/## Metadata\n\n[\s\S]*?(?=\n## |$)/, '');
-  } else {
-    setState('currentMetadata', null);
+  } else if (originalTranscript) {
+    // No metadata section but we have transcript - preserve transcript fields
+    setState('currentMetadata', {
+      ...existingMetadata,
+      transcript: existingMetadata.transcript || originalTranscript,
+      transcriptFormatted: existingMetadata.transcriptFormatted || originalTranscript,
+      hasTranscript: existingMetadata.hasTranscript ?? true
+    });
   }
 
   // Extract description section (also goes to right pane)
