@@ -175,7 +175,7 @@ app.post("/api/extract/process", async (req, res) => {
 
 // Process with LLM using streaming SSE
 app.post("/api/extract/process/stream", async (req, res) => {
-  const { basicInfo, llm, compressionLevel } = req.body;
+  const { basicInfo, llm, compressionLevel, isRerun } = req.body;
 
   if (!basicInfo) {
     return res.status(400).json({ error: "basicInfo is required" });
@@ -224,6 +224,27 @@ app.post("/api/extract/process/stream", async (req, res) => {
     transcript,
     transcriptFormatted,
   } = basicInfo;
+
+  // Create file immediately so it appears in history right away
+  const tempDir = getTempDir();
+  let filename;
+  if (isRerun) {
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .slice(0, 19);
+    filename = `${sanitizeFilename(title)} (${timestamp}).md`;
+  } else {
+    filename = `${sanitizeFilename(title)}.md`;
+  }
+  const mdPath = join(tempDir, filename);
+
+  // Write initial placeholder file
+  const initialContent = `# ${title}\n\n*Processing with LLM...*\n`;
+  writeFileSync(mdPath, initialContent);
+
+  // Send filename immediately so client can add to history
+  res.write(`data: ${JSON.stringify({ filename, title, processing: true })}\n\n`);
 
   try {
     // Stream chunks as SSE events
@@ -286,10 +307,7 @@ app.post("/api/extract/process/stream", async (req, res) => {
 
     output += `---\n\n<details>\n<summary>Original Transcript</summary>\n\n${originalTranscriptFormatted}\n\n</details>`;
 
-    // Save markdown to temp folder
-    const tempDir = getTempDir();
-    const filename = `${sanitizeFilename(title)}.md`;
-    const mdPath = join(tempDir, filename);
+    // Update the file with final content (file was created at start of stream)
     writeFileSync(mdPath, output);
 
     // Send completion event with parsed markdown

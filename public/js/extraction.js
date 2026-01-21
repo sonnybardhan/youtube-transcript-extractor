@@ -148,55 +148,20 @@ export async function handleExtract() {
         setState('currentModel', null);
         renderBasicContent(successfulBasic.map(r => r.data));
       } else {
-        // Use streaming for LLM processing
-        let accumulated = '';
-        let lastSections = {};
-
-        // Store the model label for display
-        const modelInfo = LLM_MODELS[provider]?.find(m => m.value === model);
-        setState('currentModel', modelInfo?.label || model);
-
-        // Reset throttle state before starting new stream
-        resetThrottleState();
-        setStreamingUI(true);
-
-        await new Promise((resolve, reject) => {
-          const streamController = createStreamingRequest(
-            '/api/extract/process/stream',
-            {
-              basicInfo: result.data,
-              llm,
-              compressionLevel
-            },
-            {
-              onChunk: (chunk) => {
-                accumulated += chunk;
-                lastSections = parsePartialJSON(accumulated);
-                throttledRender(lastSections, result.data.title, renderStreamingSections);
-              },
-              onComplete: async (data) => {
-                setState('currentRequest', null);
-                setStreamingUI(false);
-                // Flush final render before switching to markdown view
-                flushRender(lastSections, result.data.title, renderStreamingSections);
-                setState('currentMarkdown', data.markdown);
-                setState('currentFilename', data.filename);
-                renderMarkdown(data.markdown);
-                await loadHistory();
-                resolve();
-              },
-              onError: (err) => {
-                setState('currentRequest', null);
-                setStreamingUI(false);
-                llmErrors.push({ url: result.url, error: err.message });
-                setState('currentModel', null);
-                renderBasicContent(successfulBasic.map(r => r.data));
-                reject(err);
-              }
-            }
-          );
-          setState('currentRequest', streamController);
-        }).catch(() => {});
+        // Use the shared LLM processing function
+        try {
+          await processWithLLMStreaming(result.data, {
+            provider,
+            model,
+            compressionLevel,
+            isRerun: false,
+            skipViewSetup: true  // Already called showResultsView above
+          });
+        } catch (err) {
+          llmErrors.push({ url: result.url, error: err.message });
+          setState('currentModel', null);
+          renderBasicContent(successfulBasic.map(r => r.data));
+        }
 
         // Handle additional videos with non-streaming (for simplicity)
         if (successfulBasic.length > 1) {
@@ -256,6 +221,109 @@ export async function handleExtract() {
   }
 }
 
+/**
+ * Shared function to process basicInfo with LLM streaming
+ * Used by both handleExtract and handleRerunLLM
+ * @param {object} basicInfo - The basic extraction info (transcript, metadata, etc.)
+ * @param {object} options - Processing options
+ * @param {string} options.provider - LLM provider
+ * @param {string} options.model - LLM model
+ * @param {number} options.compressionLevel - Compression level
+ * @param {boolean} options.isRerun - Whether this is a rerun (creates new file with timestamp)
+ * @param {boolean} options.skipViewSetup - Skip showing loading view (caller already did it)
+ * @returns {Promise<void>}
+ */
+export async function processWithLLMStreaming(basicInfo, options) {
+  const { provider, model, compressionLevel, isRerun = false, skipViewSetup = false } = options;
+  const title = basicInfo.title;
+
+  // Store the model label for display
+  const modelInfo = LLM_MODELS[provider]?.find(m => m.value === model);
+  setState('currentModel', modelInfo?.label || model);
+
+  // Show loading skeleton view (unless caller already did it)
+  if (!skipViewSetup) {
+    showResultsView(null, title);
+    updateSignalPane(null);
+  }
+
+  let accumulated = '';
+  let lastSections = {};
+
+  // Reset throttle state before starting new stream
+  resetThrottleState();
+  setStreamingUI(true);
+
+  await new Promise((resolve, reject) => {
+    const streamController = createStreamingRequest(
+      '/api/extract/process/stream',
+      {
+        basicInfo,
+        llm: { provider, model },
+        compressionLevel,
+        isRerun
+      },
+      {
+        onStarted: async (data) => {
+          // File created on server - add to history immediately
+          setState('currentFilename', data.filename);
+          setState('processingFilename', data.filename);
+          await loadHistory();
+        },
+        onChunk: (chunk) => {
+          accumulated += chunk;
+          lastSections = parsePartialJSON(accumulated);
+          // Store streaming state so user can navigate away and back
+          setState('streamingState', { accumulated, lastSections, title, basicInfo });
+          throttledRender(lastSections, title, renderStreamingSections);
+        },
+        onComplete: async (data) => {
+          setState('currentRequest', null);
+          setState('processingFilename', null);
+          setState('streamingState', null);
+          setStreamingUI(false);
+          // Flush final render before switching to markdown view
+          flushRender(lastSections, title, renderStreamingSections);
+          setState('currentMarkdown', data.markdown);
+          setState('currentFilename', data.filename);
+          renderMarkdown(data.markdown);
+          await loadHistory();
+          resolve();
+        },
+        onError: (err) => {
+          setState('currentRequest', null);
+          setState('processingFilename', null);
+          setState('streamingState', null);
+          setStreamingUI(false);
+          reject(err);
+        }
+      }
+    );
+    setState('currentRequest', streamController);
+  });
+}
+
+/**
+ * Restore streaming view when user navigates back to processing item
+ */
+function restoreStreamingView() {
+  const streamingState = getState('streamingState');
+  if (!streamingState) return false;
+
+  const { lastSections, title } = streamingState;
+
+  // Re-render the streaming sections
+  showResultsView(null, title);
+  updateSignalPane(null);
+  setStreamingUI(true);
+  renderStreamingSections(lastSections, title);
+
+  return true;
+}
+
+// Register the callback so history.js can call it without circular import
+setState('restoreStreamingViewFn', restoreStreamingView);
+
 // Track if rerun is in progress to prevent duplicate requests
 let isRerunning = false;
 
@@ -266,10 +334,15 @@ export async function handleRerunLLM() {
   }
 
   const elements = getElements();
-  const currentFilename = getState('currentFilename');
+  const currentMetadata = getState('currentMetadata');
 
-  if (!currentFilename) {
-    showToast('Cannot rerun: no file selected');
+  if (!currentMetadata) {
+    showToast('Cannot rerun: no video data available');
+    return;
+  }
+
+  if (!currentMetadata.hasTranscript) {
+    showToast('Cannot rerun: no transcript available');
     return;
   }
 
@@ -281,72 +354,23 @@ export async function handleRerunLLM() {
     return;
   }
 
-  // Set debounce flag and disable button
+  // Set debounce flag
   isRerunning = true;
-  elements.rerunLlmBtn.disabled = true;
 
   const compressionLevel = getState('compressionLevel');
 
-  // Store the model label for display
-  const modelInfo = LLM_MODELS[provider]?.find(m => m.value === model);
-  setState('currentModel', modelInfo?.label || model);
-
-  // Get the current title from the markdown
-  const currentMarkdown = getState('currentMarkdown');
-  const titleMatch = currentMarkdown?.match(/^#\s+(.+)$/m);
-  const currentTitle = titleMatch ? titleMatch[1] : currentFilename.replace('.md', '');
-
-  // Show loading skeleton view (like a fresh extraction)
-  showResultsView(null, currentTitle);
-  updateSignalPane(null); // Clear previous signal data
-
-  let accumulated = '';
-  let lastSections = {};
-
-  // Reset throttle state before starting new stream
-  resetThrottleState();
-  setStreamingUI(true);
-
   try {
-    await new Promise((resolve, reject) => {
-      const streamController = createStreamingRequest(
-        '/api/reprocess/stream',
-        {
-          filename: currentFilename,
-          llm: { provider, model },
-          compressionLevel
-        },
-        {
-          onChunk: (chunk) => {
-            accumulated += chunk;
-            lastSections = parsePartialJSON(accumulated);
-            throttledRender(lastSections, currentTitle, renderStreamingSections);
-          },
-          onComplete: async (data) => {
-            setState('currentRequest', null);
-            setStreamingUI(false);
-            // Flush final render before switching to markdown view
-            flushRender(lastSections, currentTitle, renderStreamingSections);
-            setState('currentMarkdown', data.markdown);
-            setState('currentFilename', data.filename);
-            showResultsView(data.markdown, data.title);
-            await loadHistory();
-            showToast('Successfully reprocessed with LLM', 'success');
-            resolve();
-          },
-          onError: (err) => {
-            setState('currentRequest', null);
-            setStreamingUI(false);
-            reject(err);
-          }
-        }
-      );
-      setState('currentRequest', streamController);
+    await processWithLLMStreaming(currentMetadata, {
+      provider,
+      model,
+      compressionLevel,
+      isRerun: true
     });
+    showToast('Successfully reprocessed with LLM', 'success');
   } catch (err) {
     showToast(err.message);
   } finally {
-    // Reset debounce flag and re-enable button
+    // Reset debounce flag
     isRerunning = false;
     setState('currentRequest', null);
     setStreamingUI(false);

@@ -11,7 +11,10 @@ const state = {
   currentFilename: null,
   currentModel: null,
   compressionLevel: 50,
-  currentRequest: null  // Holds abort controller for in-progress request
+  currentRequest: null,  // Holds abort controller for in-progress request
+  processingFilename: null,  // Filename currently being processed (for history spinner)
+  streamingState: null,  // Stores streaming state when navigating away { accumulated, lastSections, title }
+  restoreStreamingViewFn: null  // Callback to restore streaming view (set by extraction.js)
 };
 
 export function getState(key) {

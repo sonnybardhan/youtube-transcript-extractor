@@ -351,6 +351,28 @@ body {
   color: var(--text-dim);
 }
 
+/* Processing state for history items */
+.history-item.processing {
+  background: rgba(18, 108, 135, 0.1);
+  border-left: 2px solid var(--primary);
+}
+
+.history-item.processing .history-item-meta {
+  color: var(--primary);
+}
+
+.history-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 6px;
+  border: 2px solid var(--border-dark);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+
 .delete-btn {
   display: none;
   align-items: center;

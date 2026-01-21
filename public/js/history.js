@@ -2,10 +2,10 @@
  * History management functions
  */
 import { getElements } from './elements.js';
-import { setState } from './state.js';
-import { escapeHtml, formatDate } from './utils.js';
+import { getState, setState } from './state.js';
+import { formatDate } from './utils.js';
 import { showToast } from './ui.js';
-import { showResultsView, updateSignalPane } from './views.js';
+import { showResultsView, updateSignalPane, updateInfoPane } from './views.js';
 
 // Selection state
 let selectedItems = new Set();
@@ -174,6 +174,7 @@ export async function loadHistory() {
 
 export function renderHistory(files, isFiltered = false) {
   const elements = getElements();
+  const processingFilename = getState('processingFilename');
 
   // Clear selection state when re-rendering
   selectedItems.clear();
@@ -192,8 +193,9 @@ export function renderHistory(files, isFiltered = false) {
   elements.historyList.textContent = '';
 
   files.forEach(file => {
+    const isProcessing = file.filename === processingFilename;
     const item = document.createElement('div');
-    item.className = 'history-item';
+    item.className = 'history-item' + (isProcessing ? ' processing' : '');
     item.dataset.filename = file.filename;
 
     // Checkbox for selection
@@ -211,16 +213,23 @@ export function renderHistory(files, isFiltered = false) {
     const content = document.createElement('div');
     content.className = 'history-item-content';
 
-    const title = document.createElement('div');
-    title.className = 'history-item-title';
-    title.title = file.title;
-    title.textContent = file.title;
+    const titleRow = document.createElement('div');
+    titleRow.className = 'history-item-title';
+    titleRow.title = file.title;
+    titleRow.textContent = file.title;
+
+    // Add spinner for processing items
+    if (isProcessing) {
+      const spinner = document.createElement('span');
+      spinner.className = 'mini-spinner history-spinner';
+      titleRow.appendChild(spinner);
+    }
 
     const meta = document.createElement('div');
     meta.className = 'history-item-meta';
-    meta.textContent = formatDate(file.date);
+    meta.textContent = isProcessing ? 'Processing...' : formatDate(file.date);
 
-    content.appendChild(title);
+    content.appendChild(titleRow);
     content.appendChild(meta);
 
     const deleteBtn = document.createElement('button');
@@ -291,8 +300,70 @@ function parseKnowledgeGraph(markdown) {
   return metadata;
 }
 
+/**
+ * Parse metadata from markdown content for reprocessing
+ * @param {string} markdown - The markdown content
+ * @param {string} title - The video title
+ * @returns {object} - Parsed basicInfo-like object
+ */
+function parseMetadataForRerun(markdown, title) {
+  const metadata = { title, hasTranscript: false };
+
+  // Extract original transcript from details section
+  const detailsMatch = markdown.match(
+    /<details>\s*<summary>Original Transcript<\/summary>([\s\S]*?)<\/details>/i
+  );
+  if (detailsMatch) {
+    metadata.transcript = detailsMatch[1].trim();
+    metadata.transcriptFormatted = metadata.transcript;
+    metadata.hasTranscript = true;
+  }
+
+  // Parse metadata section
+  const metadataMatch = markdown.match(/## Metadata\n\n([\s\S]*?)(?=\n## |$)/);
+  if (metadataMatch) {
+    const section = metadataMatch[1];
+
+    const channelMatch = section.match(/\*\*Channel:\*\*\s*(.+)/);
+    if (channelMatch) metadata.channel = channelMatch[1].trim();
+
+    const publishMatch = section.match(/\*\*Published:\*\*\s*(.+)/);
+    if (publishMatch) metadata.publishDate = publishMatch[1].trim();
+
+    const durationMatch = section.match(/\*\*Duration:\*\*\s*(.+)/);
+    if (durationMatch) metadata.duration = durationMatch[1].trim();
+
+    const viewsMatch = section.match(/\*\*Views:\*\*\s*(.+)/);
+    if (viewsMatch) metadata.views = viewsMatch[1].trim();
+
+    const urlMatch = section.match(/\*\*URL:\*\*\s*https:\/\/youtube\.com\/watch\?v=([^\s\n]+)/);
+    if (urlMatch) metadata.videoId = urlMatch[1].trim();
+  }
+
+  // Parse description section
+  const descMatch = markdown.match(/## Description\n\n([\s\S]*?)(?=\n## |$)/);
+  if (descMatch) {
+    metadata.description = descMatch[1].trim();
+  }
+
+  return metadata;
+}
+
 export async function loadHistoryItem(filename) {
   const elements = getElements();
+  const processingFilename = getState('processingFilename');
+
+  // If clicking on the currently processing item, restore streaming view
+  if (filename === processingFilename) {
+    const restoreStreamingViewFn = getState('restoreStreamingViewFn');
+    if (restoreStreamingViewFn && restoreStreamingViewFn()) {
+      // Update active state
+      elements.historyList.querySelectorAll('.history-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.filename === filename);
+      });
+      return;
+    }
+  }
 
   try {
     const res = await fetch(`/api/history/${encodeURIComponent(filename)}`);
@@ -307,7 +378,14 @@ export async function loadHistoryItem(filename) {
     const titleMatch = data.content.match(/^#\s+(.+)$/m);
     const title = titleMatch ? titleMatch[1] : filename.replace('.md', '');
 
+    // Parse metadata for rerun capability
+    const parsedMetadata = parseMetadataForRerun(data.content, title);
+    setState('currentMetadata', parsedMetadata);
+
     showResultsView(data.content, title);
+
+    // Update info pane with transcript and metadata
+    updateInfoPane(parsedMetadata);
 
     // Parse and display Knowledge Graph data in Signal tab
     const knowledgeGraph = parseKnowledgeGraph(data.content);

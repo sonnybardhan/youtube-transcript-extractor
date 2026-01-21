@@ -244,7 +244,7 @@ function unescapeJsonString(str) {
  * Since EventSource only supports GET, we use fetch with ReadableStream for POST
  * @param {string} url - The endpoint URL
  * @param {object} body - The request body
- * @param {object} handlers - { onChunk, onComplete, onError }
+ * @param {object} handlers - { onStarted, onChunk, onComplete, onError }
  * @returns {object} - Controller with abort method
  */
 export function createStreamingRequest(url, body, handlers) {
@@ -290,6 +290,11 @@ export function createStreamingRequest(url, body, handlers) {
               if (parsed.complete) {
                 handlers.onComplete?.(parsed);
                 return;
+              }
+
+              // Handle initial processing event (filename sent early)
+              if (parsed.processing && parsed.filename) {
+                handlers.onStarted?.(parsed);
               }
 
               if (parsed.chunk) {
