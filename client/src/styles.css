@@ -939,6 +939,7 @@ html.light .header-action {
   height: 100%;
   overflow: hidden;
   position: relative;
+  z-index: 10; /* Lower than sidebar (z-index: 20) so loading overlay doesn't cover it */
   display: flex;
   flex-direction: column;
 }
@@ -6174,13 +6175,15 @@ html.light .response-content {
 }
 
 .source-chip {
-  display: inline-block;
-  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
   background: var(--surface-darker);
-  border-radius: 4px;
-  font-size: 10px;
-  color: var(--text-dim);
-  max-width: 80px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

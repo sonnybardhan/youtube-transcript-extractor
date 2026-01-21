@@ -6,6 +6,40 @@ import { useAnnotation } from '../../hooks/useAnnotation';
 import { fetchRelatedVideos, fetchHistoryItem, fetchAnnotations, rebuildMetadataIndex } from '../../utils/api';
 import { parseMetadataForRerun, parseKnowledgeGraph } from '../../utils/markdown';
 
+// Helper to render text with URLs as clickable links
+function LinkifiedText({ text }) {
+  if (!text || typeof text !== 'string') {
+    return <>{text}</>;
+  }
+
+  // URL regex pattern
+  const urlPattern = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/g;
+  const parts = text.split(urlPattern);
+
+  return (
+    <>
+      {parts.map((part, idx) => {
+        if (urlPattern.test(part)) {
+          // Reset lastIndex since we're reusing the regex
+          urlPattern.lastIndex = 0;
+          return (
+            <a
+              key={idx}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="metadata-link"
+            >
+              {part}
+            </a>
+          );
+        }
+        return <span key={idx}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 function TranscriptTab({ metadata, transcript }) {
   const content = metadata?.transcriptFormatted || metadata?.transcript || transcript;
 
@@ -54,7 +88,9 @@ function MetadataTab({ metadata }) {
       {items.map((field) => (
         <div key={field.key} className="metadata-item">
           <span className="label">{field.label}</span>
-          <span className="value">{metadata[field.key]}</span>
+          <span className="value">
+            <LinkifiedText text={metadata[field.key]} />
+          </span>
         </div>
       ))}
     </div>
