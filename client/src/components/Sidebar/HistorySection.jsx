@@ -1,6 +1,5 @@
 import { useRef, useCallback } from 'react';
 import { useHistory } from '../../hooks/useHistory';
-import { useMultiSummaryAnalysis } from '../../hooks/useMultiSummaryAnalysis';
 import { HistoryItem } from './HistoryItem';
 
 export function HistorySection() {
@@ -20,7 +19,6 @@ export function HistorySection() {
     processingFilename,
   } = useHistory();
 
-  const { openModal: openAnalyzeModal } = useMultiSummaryAnalysis();
   const lastClickedRef = useRef(null);
 
   const handleSelect = useCallback((filename) => {
@@ -44,48 +42,42 @@ export function HistorySection() {
 
   return (
     <div className="history-section">
-      <div className="history-header">
-        <div className="history-header-left">
-          <input
-            type="checkbox"
-            className="history-checkbox"
-            title="Select all"
-            checked={selectAllState.checked}
-            ref={(el) => {
-              if (el) el.indeterminate = selectAllState.indeterminate;
-            }}
-            onChange={handleSelectAllChange}
-          />
-          <span className="history-label">SUMMARIES</span>
+      <div className="history-sticky-header">
+        <div className="history-header">
+          <div className="history-header-left">
+            <input
+              type="checkbox"
+              className="history-checkbox"
+              title="Select all"
+              checked={selectAllState.checked}
+              ref={(el) => {
+                if (el) el.indeterminate = selectAllState.indeterminate;
+              }}
+              onChange={handleSelectAllChange}
+            />
+            <span className="history-label">SUMMARIES</span>
+          </div>
+          <div className="history-header-actions">
+            <button
+              className={`bulk-delete-btn ${selectedItems.size === 0 ? 'hidden' : ''}`}
+              title="Delete selected"
+              onClick={deleteSelectedItems}
+            >
+              <span className="material-symbols-outlined">delete</span>
+              <span>{selectedItems.size}</span>
+            </button>
+          </div>
         </div>
-        <div className="history-header-actions">
-          <button
-            className={`analyze-btn ${selectedItems.size < 2 ? 'hidden' : ''}`}
-            title="Analyze selected summaries"
-            onClick={openAnalyzeModal}
-          >
-            <span className="material-symbols-outlined">query_stats</span>
-            <span>Analyze</span>
-          </button>
-          <button
-            className={`bulk-delete-btn ${selectedItems.size === 0 ? 'hidden' : ''}`}
-            title="Delete selected"
-            onClick={deleteSelectedItems}
-          >
-            <span className="material-symbols-outlined">delete</span>
-            <span>{selectedItems.size}</span>
-          </button>
-        </div>
-      </div>
 
-      <div className="history-search">
-        <span className="material-symbols-outlined">search</span>
-        <input
-          type="text"
-          placeholder="Search summaries..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <div className="history-search">
+          <span className="material-symbols-outlined">search</span>
+          <input
+            type="text"
+            placeholder="Search summaries..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="history-list">
