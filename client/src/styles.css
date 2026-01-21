@@ -2428,6 +2428,207 @@ body {
 }
 
 /* ========================================
+   Pending Annotation (Streaming)
+   ======================================== */
+.pending-annotation {
+  background: var(--bg-elevated);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.pending-annotation.streaming {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary-dim);
+}
+
+.pending-annotation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.pending-annotation-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+.pending-annotation-label .mini-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+.pending-annotation-label .error-icon {
+  font-size: 16px;
+  color: var(--danger);
+}
+
+.pending-annotation-label .success-icon {
+  font-size: 16px;
+  color: var(--success);
+}
+
+.pending-cancel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-dim);
+  transition: all 0.15s ease;
+}
+
+.pending-cancel-btn:hover {
+  background: var(--bg-hover);
+  color: var(--danger);
+}
+
+.pending-cancel-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.pending-annotation-selection {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  padding: 8px;
+  background: var(--bg-surface);
+  border-radius: 4px;
+  border-left: 2px solid var(--primary-dim);
+}
+
+.pending-annotation-content {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.pending-annotation-response {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-main);
+}
+
+.pending-annotation-response.markdown-content p {
+  margin: 0 0 8px;
+}
+
+.pending-annotation-response.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.pending-annotation-response.markdown-content strong {
+  font-weight: 600;
+}
+
+.pending-annotation-response.markdown-content em {
+  font-style: italic;
+}
+
+.pending-annotation-response.markdown-content ul,
+.pending-annotation-response.markdown-content ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.pending-annotation-response.markdown-content li {
+  margin-bottom: 4px;
+}
+
+.pending-annotation-response.markdown-content code {
+  background: var(--bg-surface);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.pending-annotation-error {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.pending-annotation-placeholder {
+  color: var(--text-dim);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.pending-annotation-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.pending-annotation-model {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.pending-annotation-model .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.pending-annotation-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pending-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-display);
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pending-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.pending-btn.discard {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border-color);
+}
+
+.pending-btn.discard:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.pending-btn.save {
+  background: var(--primary);
+  color: #fff;
+}
+
+.pending-btn.save:hover {
+  background: var(--primary-hover);
+}
+
+/* ========================================
    Utility Classes
    ======================================== */
 .hidden {
@@ -2726,9 +2927,12 @@ html.light .modal-btn.secondary:hover {
 
 html.light .toast {
   background: var(--surface-dark);
-  border-color: var(--error);
   color: var(--text-main);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+html.light .toast-success {
+  border-color: var(--success);
 }
 
 html.light .keyboard-hints kbd {

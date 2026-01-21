@@ -808,7 +808,7 @@ app.delete("/api/history/:filename/annotations/:annotationId", (req, res) => {
 
 // Stream LLM response for annotation questions
 app.post("/api/annotations/ask/stream", async (req, res) => {
-  const { selectedText, section, surroundingText, question, category, llm } = req.body;
+  const { selectedText, section, surroundingText, question, category, concepts, llm } = req.body;
 
   if (!selectedText) {
     return res.status(400).json({ error: "selectedText is required" });
@@ -839,8 +839,12 @@ app.post("/api/annotations/ask/stream", async (req, res) => {
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  // Build the prompt
-  const prompt = `You are an expert in ${category || 'this topic'}, helping clarify content from a video summary.
+  // Build the prompt with concepts for better context
+  const conceptsList = concepts?.length ? concepts.join(', ') : null;
+  const expertiseArea = category || 'this topic';
+
+  const prompt = `You are an expert in ${expertiseArea}, helping clarify content from a video summary.
+${conceptsList ? `\n**Key concepts from this video:** ${conceptsList}` : ''}
 
 **Selected text:** "${selectedText}"
 **Section:** ${section || 'General'}
@@ -850,7 +854,7 @@ ${surroundingText || 'No additional context.'}
 
 **Question:** ${question || 'Explain this in more detail.'}
 
-Provide a clear, insightful explanation in 200-300 words. Draw on your expertise in ${category || 'the subject'} to give practical context that helps the reader deeply understand this concept.`;
+Provide a clear, insightful explanation in 200-300 words. Draw on your expertise in ${expertiseArea}${conceptsList ? ` and the key concepts (${conceptsList})` : ''} to give practical context that helps the reader deeply understand this concept.`;
 
   try {
     const onChunk = (chunk) => {

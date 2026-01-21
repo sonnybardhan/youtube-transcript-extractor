@@ -1,5 +1,6 @@
 import { useApp } from '../../context/AppContext';
 import { AnnotationItem } from '../Annotations/AnnotationItem';
+import { PendingAnnotation } from '../Annotations/PendingAnnotation';
 import { useAnnotation } from '../../hooks/useAnnotation';
 
 function TranscriptTab({ metadata, transcript }) {
@@ -124,8 +125,13 @@ function SignalTab({ signalData }) {
   );
 }
 
-function AnnotationsTab({ annotations, onDelete }) {
-  if (!annotations || annotations.length === 0) {
+function AnnotationsTab({ annotations, pendingAnnotation, currentFilename, onDelete, onSave, onDiscard, onCancel }) {
+  const hasPending = pendingAnnotation && (
+    pendingAnnotation.filename === currentFilename || pendingAnnotation.isStreaming
+  );
+  const hasAnnotations = annotations && annotations.length > 0;
+
+  if (!hasPending && !hasAnnotations) {
     return (
       <div className="annotations-empty">
         <span className="material-symbols-outlined">edit_note</span>
@@ -137,7 +143,15 @@ function AnnotationsTab({ annotations, onDelete }) {
 
   return (
     <div className="annotations-list">
-      {annotations.map((annotation) => (
+      {hasPending && (
+        <PendingAnnotation
+          pending={pendingAnnotation}
+          onSave={onSave}
+          onDiscard={onDiscard}
+          onCancel={onCancel}
+        />
+      )}
+      {annotations?.map((annotation) => (
         <AnnotationItem
           key={annotation.id}
           annotation={annotation}
@@ -150,14 +164,17 @@ function AnnotationsTab({ annotations, onDelete }) {
 
 export function InfoPane() {
   const { state, actions } = useApp();
-  const { infoPaneCollapsed, activeInfoTab, currentMetadata, originalTranscript, signalData, annotations } = state;
-  const { deleteAnnotation } = useAnnotation();
+  const { infoPaneCollapsed, activeInfoTab, currentMetadata, originalTranscript, signalData, annotations, currentFilename, pendingAnnotation } = state;
+  const { deleteAnnotation, savePendingAnnotation, discardPendingAnnotation, cancelStream } = useAnnotation();
+
+  // Show indicator if there's a pending annotation
+  const annotationCount = (annotations?.length || 0) + (pendingAnnotation ? 1 : 0);
 
   const tabs = [
     { id: 'transcript', label: 'Transcript', icon: 'description' },
     { id: 'metadata', label: 'Metadata', icon: 'info' },
     { id: 'signal', label: 'Signal', icon: 'sensors' },
-    { id: 'annotations', label: 'Notes', icon: 'edit_note', count: annotations?.length || 0 },
+    { id: 'annotations', label: 'Notes', icon: 'edit_note', count: annotationCount },
   ];
 
   const handleDeleteAnnotation = async (annotationId) => {
@@ -217,7 +234,15 @@ export function InfoPane() {
           <SignalTab signalData={signalData} />
         </div>
         <div className={`info-tab-content ${activeInfoTab === 'annotations' ? 'active' : ''}`}>
-          <AnnotationsTab annotations={annotations} onDelete={handleDeleteAnnotation} />
+          <AnnotationsTab
+            annotations={annotations}
+            pendingAnnotation={pendingAnnotation}
+            currentFilename={currentFilename}
+            onDelete={handleDeleteAnnotation}
+            onSave={savePendingAnnotation}
+            onDiscard={discardPendingAnnotation}
+            onCancel={cancelStream}
+          />
         </div>
       </div>
     </aside>

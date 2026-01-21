@@ -1,42 +1,73 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { saveAnnotation as apiSaveAnnotation, deleteAnnotation as apiDeleteAnnotation } from '../utils/api';
 
+// Store abort controller outside component to persist across re-renders and page changes
+let globalAbortController = null;
+
 export function useAnnotation() {
   const { state, actions } = useApp();
-  const { provider, model, currentFilename, signalData, annotationModalData } = state;
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamedResponse, setStreamedResponse] = useState('');
-  const [error, setError] = useState(null);
-  const abortControllerRef = useRef(null);
+  const { provider, model, currentFilename, signalData, pendingAnnotation } = state;
 
-  const askLLM = useCallback(async (question) => {
-    if (!annotationModalData || !currentFilename) {
-      setError('No selection data available');
+  const startAnnotation = useCallback(async (selectionData) => {
+    if (!currentFilename) {
+      actions.showToast('No file selected');
       return;
     }
 
-    // Reset state
-    setIsStreaming(true);
-    setStreamedResponse('');
-    setError(null);
+    if (!provider || !model) {
+      actions.showToast('Please select an LLM provider and model in the sidebar settings.');
+      return;
+    }
 
-    // Create abort controller
-    abortControllerRef.current = new AbortController();
+    // Cancel any existing stream
+    if (globalAbortController) {
+      globalAbortController.abort();
+    }
+
+    // Create new abort controller
+    globalAbortController = new AbortController();
+
+    const { selectedText, section, surroundingText } = selectionData;
+    const category = signalData?.category || null;
+    const concepts = signalData?.concepts || [];
+    const question = 'Explain this in more detail.';
+
+    // Set up the pending annotation
+    const pending = {
+      filename: currentFilename,
+      selectedText,
+      section,
+      surroundingText,
+      question,
+      response: '',
+      isStreaming: true,
+      error: null,
+      model: `${provider}/${model}`,
+      category,
+      concepts,
+    };
+
+    actions.setPendingAnnotation(pending);
+
+    // Expand info pane and switch to annotations tab
+    actions.setInfoPaneCollapsed(false);
+    actions.setActiveInfoTab('annotations');
 
     try {
       const response = await fetch('/api/annotations/ask/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          selectedText: annotationModalData.selectedText,
-          section: annotationModalData.section,
-          surroundingText: annotationModalData.surroundingText,
-          category: signalData?.category || annotationModalData.category,
+          selectedText,
+          section,
+          surroundingText,
+          category,
+          concepts,
           question,
           llm: { provider, model },
         }),
-        signal: abortControllerRef.current.signal,
+        signal: globalAbortController.signal,
       });
 
       if (!response.ok) {
@@ -64,21 +95,27 @@ export function useAnnotation() {
               const parsed = JSON.parse(data);
 
               if (parsed.error) {
-                setError(parsed.error);
-                setIsStreaming(false);
+                actions.updatePendingAnnotation({
+                  error: parsed.error,
+                  isStreaming: false,
+                });
+                globalAbortController = null;
                 return;
               }
 
               if (parsed.complete) {
                 fullResponse = parsed.response || fullResponse;
-                setStreamedResponse(fullResponse);
-                setIsStreaming(false);
+                actions.updatePendingAnnotation({
+                  response: fullResponse,
+                  isStreaming: false,
+                });
+                globalAbortController = null;
                 return fullResponse;
               }
 
               if (parsed.chunk) {
                 fullResponse += parsed.chunk;
-                setStreamedResponse(fullResponse);
+                actions.updatePendingAnnotation({ response: fullResponse });
               }
             } catch {
               // Skip malformed JSON
@@ -87,51 +124,70 @@ export function useAnnotation() {
         }
       }
 
-      setIsStreaming(false);
+      actions.updatePendingAnnotation({ isStreaming: false });
+      globalAbortController = null;
       return fullResponse;
     } catch (err) {
       if (err.name === 'AbortError') {
-        setError('Request cancelled');
+        actions.updatePendingAnnotation({
+          error: 'Cancelled',
+          isStreaming: false,
+        });
       } else {
-        setError(err.message);
+        actions.updatePendingAnnotation({
+          error: err.message,
+          isStreaming: false,
+        });
       }
-      setIsStreaming(false);
+      globalAbortController = null;
       return null;
     }
-  }, [annotationModalData, currentFilename, provider, model, signalData]);
+  }, [currentFilename, provider, model, signalData, actions]);
 
   const cancelStream = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+    if (globalAbortController) {
+      globalAbortController.abort();
+      globalAbortController = null;
     }
-    setIsStreaming(false);
   }, []);
 
-  const saveAnnotation = useCallback(async (question, response) => {
-    if (!currentFilename || !annotationModalData) {
-      throw new Error('Missing required data');
+  const savePendingAnnotation = useCallback(async () => {
+    if (!pendingAnnotation || !pendingAnnotation.response || pendingAnnotation.isStreaming) {
+      return;
     }
 
     const annotation = {
       id: crypto.randomUUID(),
-      selectedText: annotationModalData.selectedText,
-      section: annotationModalData.section,
-      surroundingText: annotationModalData.surroundingText,
-      question,
-      response,
-      model: `${provider}/${model}`,
+      selectedText: pendingAnnotation.selectedText,
+      section: pendingAnnotation.section,
+      surroundingText: pendingAnnotation.surroundingText,
+      question: pendingAnnotation.question,
+      response: pendingAnnotation.response,
+      model: pendingAnnotation.model,
       timestamp: new Date().toISOString(),
     };
 
-    await apiSaveAnnotation(currentFilename, annotation);
-    actions.addAnnotation(annotation);
+    try {
+      await apiSaveAnnotation(pendingAnnotation.filename, annotation);
 
-    // Auto-switch to annotations tab after saving
-    actions.setActiveInfoTab('annotations');
+      // Only add to current annotations if we're still viewing the same file
+      if (currentFilename === pendingAnnotation.filename) {
+        actions.addAnnotation(annotation);
+      }
 
-    return annotation;
-  }, [currentFilename, annotationModalData, provider, model, actions]);
+      actions.clearPendingAnnotation();
+      actions.showToast('Annotation saved', 'success');
+      return annotation;
+    } catch (err) {
+      actions.showToast(err.message);
+      throw err;
+    }
+  }, [pendingAnnotation, currentFilename, actions]);
+
+  const discardPendingAnnotation = useCallback(() => {
+    cancelStream();
+    actions.clearPendingAnnotation();
+  }, [cancelStream, actions]);
 
   const deleteAnnotation = useCallback(async (annotationId) => {
     if (!currentFilename) {
@@ -142,22 +198,12 @@ export function useAnnotation() {
     actions.deleteAnnotation(annotationId);
   }, [currentFilename, actions]);
 
-  const closeModal = useCallback(() => {
-    cancelStream();
-    setStreamedResponse('');
-    setError(null);
-    actions.setAnnotationModal(false, null);
-  }, [cancelStream, actions]);
-
   return {
-    isStreaming,
-    streamedResponse,
-    error,
-    askLLM,
+    pendingAnnotation,
+    startAnnotation,
     cancelStream,
-    saveAnnotation,
+    savePendingAnnotation,
+    discardPendingAnnotation,
     deleteAnnotation,
-    closeModal,
-    annotationModalData,
   };
 }

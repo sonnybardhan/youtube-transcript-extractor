@@ -1,14 +1,15 @@
 import { useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useExtraction } from '../../hooks/useExtraction';
+import { useAnnotation } from '../../hooks/useAnnotation';
 import { ResultsHeader } from './ResultsHeader';
 import { OutputPane } from './OutputPane';
 import { InfoPane } from './InfoPane';
-import { AnnotationModal } from '../Annotations/AnnotationModal';
 
 export function ResultsView() {
-  const { state, actions } = useApp();
+  const { state } = useApp();
   const { handleRerunLLM, isStreaming } = useExtraction();
+  const { startAnnotation } = useAnnotation();
 
   // Only show streaming content if viewing the item being processed
   const isViewingStreamingItem = state.currentFilename === state.processingFilename;
@@ -20,10 +21,10 @@ export function ResultsView() {
     handleRerunLLM();
   }, [handleRerunLLM]);
 
-  // Handle opening annotation modal
+  // Handle annotation request - stream directly to side pane
   const handleAskLLM = useCallback((selectionData) => {
-    actions.setAnnotationModal(true, selectionData);
-  }, [actions]);
+    startAnnotation(selectionData);
+  }, [startAnnotation]);
 
   return (
     <div id="results-view" className="view">
@@ -39,10 +40,6 @@ export function ResultsView() {
         </div>
         <InfoPane />
       </div>
-
-      {state.annotationModalOpen && (
-        <AnnotationModal />
-      )}
     </div>
   );
 }

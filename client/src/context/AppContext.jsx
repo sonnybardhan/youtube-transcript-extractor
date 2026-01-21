@@ -58,8 +58,8 @@ const initialState = {
 
   // Annotations
   annotations: [],
-  annotationModalOpen: false,
-  annotationModalData: null, // { selectedText, section, surroundingText }
+  // Pending annotation being streamed (persists across page changes)
+  pendingAnnotation: null, // { filename, selectedText, section, question, response, isStreaming, error }
 };
 
 // Action types
@@ -89,7 +89,9 @@ const ActionTypes = {
   SET_ANNOTATIONS: 'SET_ANNOTATIONS',
   ADD_ANNOTATION: 'ADD_ANNOTATION',
   DELETE_ANNOTATION: 'DELETE_ANNOTATION',
-  SET_ANNOTATION_MODAL: 'SET_ANNOTATION_MODAL',
+  SET_PENDING_ANNOTATION: 'SET_PENDING_ANNOTATION',
+  UPDATE_PENDING_ANNOTATION: 'UPDATE_PENDING_ANNOTATION',
+  CLEAR_PENDING_ANNOTATION: 'CLEAR_PENDING_ANNOTATION',
   CLEAR_CURRENT: 'CLEAR_CURRENT',
   UPDATE_STATE: 'UPDATE_STATE',
 };
@@ -194,12 +196,19 @@ function appReducer(state, action) {
         annotations: state.annotations.filter((a) => a.id !== action.payload),
       };
 
-    case ActionTypes.SET_ANNOTATION_MODAL:
+    case ActionTypes.SET_PENDING_ANNOTATION:
+      return { ...state, pendingAnnotation: action.payload };
+
+    case ActionTypes.UPDATE_PENDING_ANNOTATION:
       return {
         ...state,
-        annotationModalOpen: action.payload.open,
-        annotationModalData: action.payload.data ?? state.annotationModalData,
+        pendingAnnotation: state.pendingAnnotation
+          ? { ...state.pendingAnnotation, ...action.payload }
+          : null,
       };
+
+    case ActionTypes.CLEAR_PENDING_ANNOTATION:
+      return { ...state, pendingAnnotation: null };
 
     case ActionTypes.CLEAR_CURRENT:
       return {
@@ -321,8 +330,14 @@ export function AppProvider({ children }) {
     deleteAnnotation: (id) =>
       dispatch({ type: ActionTypes.DELETE_ANNOTATION, payload: id }),
 
-    setAnnotationModal: (open, data = null) =>
-      dispatch({ type: ActionTypes.SET_ANNOTATION_MODAL, payload: { open, data } }),
+    setPendingAnnotation: (annotation) =>
+      dispatch({ type: ActionTypes.SET_PENDING_ANNOTATION, payload: annotation }),
+
+    updatePendingAnnotation: (updates) =>
+      dispatch({ type: ActionTypes.UPDATE_PENDING_ANNOTATION, payload: updates }),
+
+    clearPendingAnnotation: () =>
+      dispatch({ type: ActionTypes.CLEAR_PENDING_ANNOTATION }),
 
     clearCurrent: () =>
       dispatch({ type: ActionTypes.CLEAR_CURRENT }),
