@@ -8,7 +8,7 @@ import {
   writeFileSync,
   mkdirSync,
 } from "fs";
-import { join, dirname } from "path";
+import { join, dirname, resolve, sep } from "path";
 import { fileURLToPath } from "url";
 import {
   extract,
@@ -621,12 +621,19 @@ app.get("/api/history/:filename", (req, res) => {
   const tempDir = getTempDir();
   const filename = req.params.filename;
 
-  // Prevent path traversal
-  if (filename.includes("..") || filename.includes("/")) {
+  // Prevent path traversal - check that resolved path stays within tempDir
+  if (filename.includes("/") || filename.includes("\\")) {
     return res.status(400).json({ error: "Invalid filename" });
   }
 
   const filePath = join(tempDir, filename);
+
+  // Additional check: ensure resolved path is within tempDir
+  const resolvedPath = resolve(filePath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
 
   if (!existsSync(filePath)) {
     return res.status(404).json({ error: "File not found" });
@@ -653,12 +660,19 @@ app.delete("/api/history/:filename", (req, res) => {
   const tempDir = getTempDir();
   const filename = req.params.filename;
 
-  // Prevent path traversal
-  if (filename.includes("..") || filename.includes("/")) {
+  // Prevent path traversal - check that resolved path stays within tempDir
+  if (filename.includes("/") || filename.includes("\\")) {
     return res.status(400).json({ error: "Invalid filename" });
   }
 
   const filePath = join(tempDir, filename);
+
+  // Additional check: ensure resolved path is within tempDir
+  const resolvedPath = resolve(filePath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
 
   if (!existsSync(filePath)) {
     return res.status(404).json({ error: "File not found" });
