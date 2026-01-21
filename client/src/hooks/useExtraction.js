@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { extractBasic, createStreamingRequest } from '../utils/api';
+import { extractBasic, createStreamingRequest, fetchAnnotations } from '../utils/api';
 import { parsePartialJSON } from '../utils/streaming';
 import { LLM_MODELS } from '../utils/config';
 
@@ -112,14 +112,22 @@ export function useExtraction() {
               actions.setIsStreaming(false);
             }, 50);
 
+            // Fetch annotations for the new file (may not exist yet for new files)
+            const fileAnnotations = await fetchAnnotations(data.filename).catch(() => []);
+
+            // Set ALL extraction state to ensure data is in sync after page navigation
             actions.setCurrentExtraction({
               markdown: data.markdown,
               filename: data.filename,
+              metadata: basicInfo,
+              transcript: basicInfo.transcriptFormatted || basicInfo.transcript || '',
             });
 
             if (data.signal) {
               actions.setSignalData(data.signal);
             }
+
+            actions.setAnnotations(fileAnnotations);
 
             await reloadHistory();
             resolve(data);
