@@ -444,16 +444,49 @@ export function createSummaryAnalysisStream(filenames, promptType, customPrompt,
 /**
  * Save analysis result as a new file
  */
-export async function saveAnalysisResult(content, title) {
+export async function saveAnalysisResult(content, title, sourceFilenames = []) {
   const res = await fetch('/api/summaries/analyze/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content, title })
+    body: JSON.stringify({ content, title, sourceFilenames })
   });
   if (!res.ok) {
     const errorData = await res.json();
     throw new Error(errorData.error || 'Failed to save analysis');
   }
+  return res.json();
+}
+
+/**
+ * Fetch saved analyses (separate from history)
+ */
+export async function fetchSavedAnalyses() {
+  const res = await fetch('/api/analyses');
+  if (!res.ok) {
+    // Return empty array if endpoint not available (server needs restart)
+    if (res.status === 404) return [];
+    throw new Error('Failed to load saved analyses');
+  }
+  return res.json();
+}
+
+/**
+ * Fetch a single analysis with source info
+ */
+export async function fetchAnalysis(filename) {
+  const res = await fetch(`/api/analyses/${encodeURIComponent(filename)}`);
+  if (!res.ok) throw new Error('Failed to load analysis');
+  return res.json();
+}
+
+/**
+ * Delete an analysis file
+ */
+export async function deleteAnalysisFile(filename) {
+  const res = await fetch(`/api/analyses/${encodeURIComponent(filename)}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Failed to delete analysis');
   return res.json();
 }
 

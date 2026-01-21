@@ -599,7 +599,7 @@ app.post("/api/reprocess", async (req, res) => {
   }
 });
 
-// List all extractions in temp/
+// List all extractions in temp/ (excluding analysis files)
 app.get("/api/history", (_req, res) => {
   const tempDir = getTempDir();
 
@@ -608,7 +608,7 @@ app.get("/api/history", (_req, res) => {
   }
 
   const files = readdirSync(tempDir)
-    .filter((f) => f.endsWith(".md"))
+    .filter((f) => f.endsWith(".md") && !f.startsWith("Analysis_"))
     .map((filename) => {
       const filePath = join(tempDir, filename);
       const stat = statSync(filePath);
@@ -1291,7 +1291,7 @@ app.post("/api/summaries/analyze/stream", async (req, res) => {
 
 // Multi-Summary Analysis - Save analysis result as new file
 app.post("/api/summaries/analyze/save", (req, res) => {
-  const { content, title } = req.body;
+  const { content, title, sourceFilenames } = req.body;
 
   if (!content) {
     return res.status(400).json({ error: "content is required" });
@@ -1300,7 +1300,7 @@ app.post("/api/summaries/analyze/save", (req, res) => {
   const tempDir = getTempDir();
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const baseTitle = title || "Cross-Reference Analysis";
-  const filename = `${sanitizeFilename(baseTitle)} (${timestamp}).md`;
+  const filename = `Analysis_${sanitizeFilename(baseTitle)} (${timestamp}).md`;
   const filePath = join(tempDir, filename);
 
   // Format the content as markdown
@@ -1315,11 +1315,133 @@ ${content}
 
   writeFileSync(filePath, markdownContent);
 
+  // Save analysis metadata with source files
+  const analysisMetaPath = filePath.replace('.md', '.analysis.json');
+  const analysisMeta = {
+    title: baseTitle,
+    sourceFiles: sourceFilenames || [],
+    createdAt: new Date().toISOString(),
+  };
+  writeFileSync(analysisMetaPath, JSON.stringify(analysisMeta, null, 2));
+
   res.json({
     success: true,
     filename,
     title: baseTitle,
   });
+});
+
+// List all saved analyses (files with .analysis.json metadata)
+app.get("/api/analyses", (_req, res) => {
+  const tempDir = getTempDir();
+
+  if (!existsSync(tempDir)) {
+    return res.json([]);
+  }
+
+  const analysisFiles = readdirSync(tempDir)
+    .filter((f) => f.endsWith(".analysis.json"))
+    .map((metaFilename) => {
+      const metaPath = join(tempDir, metaFilename);
+      const mdFilename = metaFilename.replace('.analysis.json', '.md');
+      const mdPath = join(tempDir, mdFilename);
+
+      try {
+        const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+        const stat = existsSync(mdPath) ? statSync(mdPath) : null;
+
+        return {
+          filename: mdFilename,
+          title: meta.title || mdFilename.replace('.md', ''),
+          date: meta.createdAt || (stat ? stat.mtime.toISOString() : new Date().toISOString()),
+          sourceFiles: meta.sourceFiles || [],
+        };
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  res.json(analysisFiles);
+});
+
+// Get a specific analysis with its metadata
+app.get("/api/analyses/:filename", (req, res) => {
+  const tempDir = getTempDir();
+  const filename = req.params.filename;
+
+  // Prevent path traversal
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  const filePath = join(tempDir, filename);
+  const metaPath = filePath.replace('.md', '.analysis.json');
+
+  // Additional check: ensure resolved path is within tempDir
+  const resolvedPath = resolve(filePath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  if (!existsSync(filePath)) {
+    return res.status(404).json({ error: "Analysis not found" });
+  }
+
+  const content = readFileSync(filePath, "utf-8");
+
+  let meta = null;
+  if (existsSync(metaPath)) {
+    try {
+      meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+    } catch {
+      // Ignore JSON parse errors
+    }
+  }
+
+  res.json({
+    filename,
+    content,
+    title: meta?.title || filename.replace('.md', ''),
+    sourceFiles: meta?.sourceFiles || [],
+    createdAt: meta?.createdAt,
+  });
+});
+
+// Delete an analysis
+app.delete("/api/analyses/:filename", (req, res) => {
+  const tempDir = getTempDir();
+  const filename = req.params.filename;
+
+  // Prevent path traversal
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  const filePath = join(tempDir, filename);
+  const metaPath = filePath.replace('.md', '.analysis.json');
+
+  // Additional check: ensure resolved path is within tempDir
+  const resolvedPath = resolve(filePath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  if (!existsSync(filePath)) {
+    return res.status(404).json({ error: "Analysis not found" });
+  }
+
+  unlinkSync(filePath);
+
+  // Also delete the metadata file if it exists
+  if (existsSync(metaPath)) {
+    unlinkSync(metaPath);
+  }
+
+  res.json({ success: true });
 });
 
 // Get available analysis prompt types
