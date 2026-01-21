@@ -3,6 +3,7 @@
 ## Pages
 
 ### Main Page (`currentPage: 'main'`)
+
 Primary interface with sidebar and content area.
 
 **Sidebar**
@@ -42,86 +43,91 @@ Primary interface with sidebar and content area.
 ---
 
 ### Metadata Explorer Page (`currentPage: 'explorer'`)
+
 Browse and filter all extracted metadata across summaries.
 
-| Feature | Description |
-|---------|-------------|
-| Back Button | Return to main page |
-| Search | Filter terms across all categories |
-| Filter Mode Toggle | AND (match all) / OR (match any) |
-| Clear All | Reset all selections |
-| Rebuild Index | Regenerate metadata index from signal files |
-| Concepts Section | Clickable chips to filter by concept |
-| Entities Section | Clickable chips to filter by entity |
-| Tags Section | Clickable chips to filter by tag |
-| Categories Section | Clickable chips to filter by category |
-| Matching Files | List of summaries matching selected terms |
+| Feature            | Description                                 |
+| ------------------ | ------------------------------------------- |
+| Back Button        | Return to main page                         |
+| Search             | Filter terms across all categories          |
+| Filter Mode Toggle | AND (match all) / OR (match any)            |
+| Clear All          | Reset all selections                        |
+| Rebuild Index      | Regenerate metadata index from signal files |
+| Concepts Section   | Clickable chips to filter by concept        |
+| Entities Section   | Clickable chips to filter by entity         |
+| Tags Section       | Clickable chips to filter by tag            |
+| Categories Section | Clickable chips to filter by category       |
+| Matching Files     | List of summaries matching selected terms   |
 
 ---
 
 ## Modals
 
 ### Prompt Modal (Settings)
-| Feature | Description |
-|---------|-------------|
-| Prompt Editor | Textarea to customize LLM instructions |
-| Reset to Default | Restore original prompt |
-| Save | Persist custom prompt (Cmd+Enter shortcut) |
+
+| Feature          | Description                                |
+| ---------------- | ------------------------------------------ |
+| Prompt Editor    | Textarea to customize LLM instructions     |
+| Reset to Default | Restore original prompt                    |
+| Save             | Persist custom prompt (Cmd+Enter shortcut) |
 
 ### Delete Modal
-| Feature | Description |
-|---------|-------------|
-| Confirmation | Confirm deletion of selected items |
-| Cancel/Delete | Action buttons |
+
+| Feature       | Description                        |
+| ------------- | ---------------------------------- |
+| Confirmation  | Confirm deletion of selected items |
+| Cancel/Delete | Action buttons                     |
 
 ### Analyze Modal (Multi-Summary Analysis)
-| Feature | Description |
-|---------|-------------|
-| Selected Count | Shows number of summaries to analyze |
-| Prompt Selector | Radio buttons: Similarities, Differences, SaaS Ideas, Unified Summary, Generic |
-| Custom Prompt | Optional textarea for custom analysis prompt |
-| Run Analysis | Start streaming LLM analysis |
-| Response Area | Streaming markdown output |
-| Copy to Clipboard | Copy analysis result |
-| Save as File | Persist analysis to history |
+
+| Feature           | Description                                                                    |
+| ----------------- | ------------------------------------------------------------------------------ |
+| Selected Count    | Shows number of summaries to analyze                                           |
+| Prompt Selector   | Radio buttons: Similarities, Differences, SaaS Ideas, Unified Summary, Generic |
+| Custom Prompt     | Optional textarea for custom analysis prompt                                   |
+| Run Analysis      | Start streaming LLM analysis                                                   |
+| Response Area     | Streaming markdown output                                                      |
+| Copy to Clipboard | Copy analysis result                                                           |
+| Save as File      | Persist analysis to history                                                    |
 
 ### Metadata Streamliner Modal
-| Phase | Features |
-|-------|----------|
-| Setup | Shows signal file count, start analysis button |
-| Analyzing | Progress indicator with current file being processed |
-| Review | Proposed normalizations grouped by type (concepts, entities, tags), select/deselect changes |
-| Applying | Progress while applying selected normalizations |
-| Complete | Summary of applied changes, close button |
+
+| Phase     | Features                                                                                    |
+| --------- | ------------------------------------------------------------------------------------------- |
+| Setup     | Shows signal file count, start analysis button                                              |
+| Analyzing | Progress indicator with current file being processed                                        |
+| Review    | Proposed normalizations grouped by type (concepts, entities, tags), select/deselect changes |
+| Applying  | Progress while applying selected normalizations                                             |
+| Complete  | Summary of applied changes, close button                                                    |
 
 ---
 
 ## Overlays & Notifications
 
-| Component | Description |
-|-----------|-------------|
-| Loading Overlay | Full-screen spinner with message, cancel button |
-| Toast | Bottom-right notification for success/error messages |
+| Component       | Description                                          |
+| --------------- | ---------------------------------------------------- |
+| Loading Overlay | Full-screen spinner with message, cancel button      |
+| Toast           | Bottom-right notification for success/error messages |
 
 ---
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| Cmd+Enter | Extract URLs (input view) / Save prompt (modal) |
-| Escape | Close modals |
-| Shift+Click | Range select in history list |
+| Shortcut    | Action                                          |
+| ----------- | ----------------------------------------------- |
+| Cmd+Enter   | Extract URLs (input view) / Save prompt (modal) |
+| Escape      | Close modals                                    |
+| Shift+Click | Range select in history list                    |
 
 ---
 
 ## Data Files (temp/)
 
-| Extension | Purpose |
-|-----------|---------|
-| `.md` | Processed summary |
-| `.info.json` | Video metadata |
-| `.srt` | Subtitle file |
-| `.signal.json` | Extracted metadata (concepts, entities, tags, category) |
-| `.annotations.json` | Saved annotations |
-| `metadata-index.json` | Cross-reference index |
+| Extension             | Purpose                                                 |
+| --------------------- | ------------------------------------------------------- |
+| `.md`                 | Processed summary                                       |
+| `.info.json`          | Video metadata                                          |
+| `.srt`                | Subtitle file                                           |
+| `.signal.json`        | Extracted metadata (concepts, entities, tags, category) |
+| `.annotations.json`   | Saved annotations                                       |
+| `metadata-index.json` | Cross-reference index                                   |

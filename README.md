@@ -48,30 +48,30 @@ OPENAI_API_KEY="sk-..." node youtube-extractor.js <URL>  # With LLM
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/extract` | Full extraction with optional LLM |
-| POST | `/api/extract/basic` | Get transcript/metadata instantly |
-| POST | `/api/extract/process` | Process basic info with LLM |
-| POST | `/api/reprocess` | Rerun LLM on existing file |
-| GET | `/api/history` | List extractions |
-| GET/DELETE | `/api/history/:filename` | Get/delete extraction |
-| GET/POST/DELETE | `/api/prompt` | Manage custom prompt |
-| POST | `/api/annotate/stream` | Stream annotation response |
-| GET/POST/DELETE | `/api/annotations/:filename` | Manage annotations |
-| POST | `/api/summaries/analyze/stream` | Analyze multiple summaries |
-| POST | `/api/summaries/analyze/save` | Save analysis result |
-| GET | `/api/metadata/index` | Get metadata index |
-| POST | `/api/metadata/index/rebuild` | Rebuild metadata index |
-| GET | `/api/metadata/related/:filename` | Get related videos |
-| GET | `/api/config` | Check API key status |
+| Method          | Endpoint                          | Description                       |
+| --------------- | --------------------------------- | --------------------------------- |
+| POST            | `/api/extract`                    | Full extraction with optional LLM |
+| POST            | `/api/extract/basic`              | Get transcript/metadata instantly |
+| POST            | `/api/extract/process`            | Process basic info with LLM       |
+| POST            | `/api/reprocess`                  | Rerun LLM on existing file        |
+| GET             | `/api/history`                    | List extractions                  |
+| GET/DELETE      | `/api/history/:filename`          | Get/delete extraction             |
+| GET/POST/DELETE | `/api/prompt`                     | Manage custom prompt              |
+| POST            | `/api/annotate/stream`            | Stream annotation response        |
+| GET/POST/DELETE | `/api/annotations/:filename`      | Manage annotations                |
+| POST            | `/api/summaries/analyze/stream`   | Analyze multiple summaries        |
+| POST            | `/api/summaries/analyze/save`     | Save analysis result              |
+| GET             | `/api/metadata/index`             | Get metadata index                |
+| POST            | `/api/metadata/index/rebuild`     | Rebuild metadata index            |
+| GET             | `/api/metadata/related/:filename` | Get related videos                |
+| GET             | `/api/config`                     | Check API key status              |
 
 ## LLM Models
 
-| Provider | Models |
-|----------|--------|
-| OpenAI | gpt-4o-mini, gpt-4o, gpt-5-nano, gpt-5 |
-| Anthropic | claude-sonnet-4, claude-haiku-4 |
+| Provider   | Models                                                                   |
+| ---------- | ------------------------------------------------------------------------ |
+| OpenAI     | gpt-4o-mini, gpt-4o, gpt-5-nano, gpt-5                                   |
+| Anthropic  | claude-sonnet-4, claude-haiku-4                                          |
 | OpenRouter | claude-sonnet-4.5, claude-opus-4.5, gpt-5.2, gemini-3-pro, deepseek-v3.2 |
 
 ## License
