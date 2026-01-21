@@ -179,6 +179,7 @@ export function useExtraction() {
         transcript: firstBasic.transcriptFormatted || firstBasic.transcript || '',
       });
       actions.setSignalData(null);
+      actions.setAnnotations([]);
 
       // Phase 2: Process with LLM
       if (llm) {
@@ -242,6 +243,7 @@ export function useExtraction() {
 
     actions.setView('results');
     actions.setSignalData(null);
+    actions.setAnnotations([]);
     // Clear markdown immediately so loading skeleton shows
     actions.setCurrentExtraction({ markdown: '' });
 

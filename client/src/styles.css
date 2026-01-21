@@ -1118,7 +1118,7 @@ body {
   justify-content: center;
 }
 
-.info-pane.collapsed .info-tab span:last-child {
+.info-pane.collapsed .info-tab span:not(:first-child) {
   display: none;
 }
 
@@ -2406,10 +2406,6 @@ body {
   font-weight: 600;
   border-radius: 9px;
   margin-left: 4px;
-}
-
-.info-pane.collapsed .tab-count {
-  display: none;
 }
 
 /* Expand button in annotation response */

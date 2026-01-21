@@ -18,7 +18,6 @@ import {
   getTempDir,
   getPromptsDir,
   DEFAULT_PROMPT,
-  getPromptForCompression,
   sanitizeFilename,
   streamWithLLM,
   convertToSubheadings,
@@ -844,6 +843,7 @@ app.post("/api/annotations/ask/stream", async (req, res) => {
   const prompt = `You are an expert in ${category || 'this topic'}, helping clarify content from a video summary.
 
 **Selected text:** "${selectedText}"
+**Section:** ${section || 'General'}
 
 **Surrounding context:**
 ${surroundingText || 'No additional context.'}
