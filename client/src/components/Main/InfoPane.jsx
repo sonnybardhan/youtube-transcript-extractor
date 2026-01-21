@@ -295,8 +295,12 @@ function RelatedTab({ currentFilename, onNavigate }) {
 
 export function InfoPane() {
   const { state, actions } = useApp();
-  const { infoPaneCollapsed, activeInfoTab, currentMetadata, originalTranscript, signalData, annotations, currentFilename, pendingAnnotation } = state;
+  const { infoPaneCollapsed, activeInfoTab, currentMetadata, originalTranscript, signalData, annotations, currentFilename, pendingAnnotation, streamingState, isStreaming } = state;
   const { deleteAnnotation, savePendingAnnotation, discardPendingAnnotation, cancelStream } = useAnnotation();
+
+  // During streaming, use basicInfo from streamingState as fallback for metadata
+  const effectiveMetadata = currentMetadata || (isStreaming && streamingState?.basicInfo) || null;
+  const effectiveTranscript = originalTranscript || (isStreaming && streamingState?.basicInfo?.transcriptFormatted) || (isStreaming && streamingState?.basicInfo?.transcript) || '';
 
   // Show indicator if there's a pending annotation
   const annotationCount = (annotations?.length || 0) + (pendingAnnotation ? 1 : 0);
@@ -390,10 +394,10 @@ export function InfoPane() {
 
       <div className="info-pane-content">
         <div className={`info-tab-content ${activeInfoTab === 'transcript' ? 'active' : ''}`}>
-          <TranscriptTab metadata={currentMetadata} transcript={originalTranscript} />
+          <TranscriptTab metadata={effectiveMetadata} transcript={effectiveTranscript} />
         </div>
         <div className={`info-tab-content ${activeInfoTab === 'metadata' ? 'active' : ''}`}>
-          <MetadataTab metadata={currentMetadata} />
+          <MetadataTab metadata={effectiveMetadata} />
         </div>
         <div className={`info-tab-content ${activeInfoTab === 'signal' ? 'active' : ''}`}>
           <SignalTab signalData={signalData} />

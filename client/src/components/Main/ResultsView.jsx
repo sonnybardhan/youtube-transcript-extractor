@@ -12,72 +12,79 @@ export function ResultsView() {
   const { state, actions } = useApp();
   const { handleRerunLLM, isStreaming } = useExtraction();
   const { startAnnotation } = useAnnotation();
-  const syncAttemptedRef = useRef(null);
+  const lastSyncedFileRef = useRef(null);
+  const isMountedRef = useRef(false);
 
-  // Sync data when component mounts with a filename but missing data
-  // This handles the case where user navigated away during streaming and came back
+  // Sync data when component mounts or when returning from another page
+  // This ensures metadata/transcript/signal are loaded after navigation
   useEffect(() => {
     const { currentFilename, currentMetadata, signalData, isStreaming: streaming, processingFilename } = state;
 
-    // Skip if no filename, currently streaming this file, or already attempted sync for this file
-    if (!currentFilename || (streaming && currentFilename === processingFilename)) {
+    // Skip if no filename
+    if (!currentFilename) {
       return;
     }
 
-    // Skip if we already attempted sync for this file
-    if (syncAttemptedRef.current === currentFilename) {
+    // If actively streaming this file, only sync if metadata is missing
+    // (metadata should have been set before streaming started)
+    if (streaming && currentFilename === processingFilename) {
+      // During streaming, metadata should be in state from before streaming
+      // If it's missing, something went wrong - but we can't fetch incomplete file
+      // Just log and return
+      if (!currentMetadata) {
+        console.warn('Metadata missing during streaming - this should not happen');
+      }
       return;
     }
 
-    // Check if data appears to be missing (no metadata or signal)
-    const needsSync = !currentMetadata || !signalData;
+    // Skip if we already synced this exact file in this mount cycle
+    if (lastSyncedFileRef.current === currentFilename && isMountedRef.current) {
+      return;
+    }
 
-    if (needsSync) {
-      syncAttemptedRef.current = currentFilename;
+    // Mark as mounted and track synced file
+    isMountedRef.current = true;
+    lastSyncedFileRef.current = currentFilename;
 
-      // Reload data for the current file
-      (async () => {
-        try {
-          const [data, fileAnnotations] = await Promise.all([
-            fetchHistoryItem(currentFilename),
-            fetchAnnotations(currentFilename).catch(() => []),
-          ]);
+    // Reload data to ensure consistency after page navigation
+    // This runs when: 1) component mounts with a file, 2) file changes, 3) streaming completes
+    (async () => {
+      try {
+        const [data, fileAnnotations] = await Promise.all([
+          fetchHistoryItem(currentFilename),
+          fetchAnnotations(currentFilename).catch(() => []),
+        ]);
 
-          // Only update if we're still viewing the same file
-          if (state.currentFilename !== currentFilename) return;
+        const titleMatch = data.content.match(/^#\s+(.+)$/m);
+        const title = titleMatch ? titleMatch[1] : currentFilename.replace('.md', '');
+        const parsedMetadata = parseMetadataForRerun(data.content, title);
 
-          const titleMatch = data.content.match(/^#\s+(.+)$/m);
-          const title = titleMatch ? titleMatch[1] : currentFilename.replace('.md', '');
-          const parsedMetadata = parseMetadataForRerun(data.content, title);
+        actions.setCurrentExtraction({
+          metadata: parsedMetadata,
+          transcript: parsedMetadata.transcript || '',
+        });
 
-          actions.setCurrentExtraction({
-            markdown: data.content,
-            filename: currentFilename,
-            metadata: parsedMetadata,
-            transcript: parsedMetadata.transcript || '',
-          });
-
-          if (data.signal) {
-            actions.setSignalData(data.signal);
-          } else {
-            const knowledgeGraph = parseKnowledgeGraph(data.content);
-            actions.setSignalData(knowledgeGraph);
-          }
-
-          actions.setAnnotations(fileAnnotations);
-        } catch (err) {
-          console.error('Failed to sync file data:', err);
+        if (data.signal) {
+          actions.setSignalData(data.signal);
+        } else {
+          const knowledgeGraph = parseKnowledgeGraph(data.content);
+          actions.setSignalData(knowledgeGraph);
         }
-      })();
-    }
+
+        actions.setAnnotations(fileAnnotations);
+      } catch (err) {
+        console.error('Failed to sync file data:', err);
+      }
+    })();
   }, [state.currentFilename, state.currentMetadata, state.signalData, state.isStreaming, state.processingFilename, actions]);
 
-  // Reset sync ref when filename changes
+  // Reset mount flag when component unmounts (for next mount cycle)
   useEffect(() => {
-    if (state.currentFilename !== syncAttemptedRef.current) {
-      syncAttemptedRef.current = null;
-    }
-  }, [state.currentFilename]);
+    return () => {
+      isMountedRef.current = false;
+      lastSyncedFileRef.current = null;
+    };
+  }, []);
 
   // Only show streaming content if viewing the item being processed
   const isViewingStreamingItem = state.currentFilename === state.processingFilename;
