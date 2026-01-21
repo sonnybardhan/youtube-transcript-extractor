@@ -240,7 +240,7 @@ app.post("/api/extract/process/stream", async (req, res) => {
   const mdPath = join(tempDir, filename);
 
   // Write initial placeholder file
-  const initialContent = `# ${title}\n\n*Processing with LLM...*\n`;
+  const initialContent = `# ${title}\n\n*Processing...*\n`;
   writeFileSync(mdPath, initialContent);
 
   // Send filename immediately so client can add to history
@@ -282,16 +282,6 @@ app.post("/api/extract/process/stream", async (req, res) => {
 
     if (llmContent?.actionItems?.length > 0) {
       output += `## Action Items & Takeaways\n\n${llmContent.actionItems.map((item) => `- ${item}`).join("\n")}\n\n`;
-    }
-
-    // Knowledge Graph Metadata section
-    if (llmContent?.concepts?.length || llmContent?.entities?.length ||
-        llmContent?.category || llmContent?.suggestedTags?.length) {
-      output += `## Knowledge Graph\n\n`;
-      if (llmContent.category) output += `**Category:** ${llmContent.category}\n\n`;
-      if (llmContent.concepts?.length) output += `**Concepts:** ${llmContent.concepts.join(', ')}\n\n`;
-      if (llmContent.entities?.length) output += `**Entities:** ${llmContent.entities.join(', ')}\n\n`;
-      if (llmContent.suggestedTags?.length) output += `**Tags:** ${llmContent.suggestedTags.join(', ')}\n\n`;
     }
 
     output += `## Metadata\n\n`;
@@ -431,16 +421,6 @@ app.post("/api/reprocess/stream", async (req, res) => {
       output += `## Action Items & Takeaways\n\n${llmContent.actionItems.map((i) => `- ${i}`).join("\n")}\n\n`;
     }
 
-    // Knowledge Graph Metadata section
-    if (llmContent?.concepts?.length || llmContent?.entities?.length ||
-        llmContent?.category || llmContent?.suggestedTags?.length) {
-      output += `## Knowledge Graph\n\n`;
-      if (llmContent.category) output += `**Category:** ${llmContent.category}\n\n`;
-      if (llmContent.concepts?.length) output += `**Concepts:** ${llmContent.concepts.join(', ')}\n\n`;
-      if (llmContent.entities?.length) output += `**Entities:** ${llmContent.entities.join(', ')}\n\n`;
-      if (llmContent.suggestedTags?.length) output += `**Tags:** ${llmContent.suggestedTags.join(', ')}\n\n`;
-    }
-
     if (metadataMatch) {
       output += `## Metadata\n\n${metadataMatch[1]}`;
     }
@@ -562,16 +542,6 @@ app.post("/api/reprocess", async (req, res) => {
 
     if (llmContent?.actionItems?.length > 0) {
       output += `## Action Items & Takeaways\n\n${llmContent.actionItems.map((i) => `- ${i}`).join("\n")}\n\n`;
-    }
-
-    // Knowledge Graph Metadata section
-    if (llmContent?.concepts?.length || llmContent?.entities?.length ||
-        llmContent?.category || llmContent?.suggestedTags?.length) {
-      output += `## Knowledge Graph\n\n`;
-      if (llmContent.category) output += `**Category:** ${llmContent.category}\n\n`;
-      if (llmContent.concepts?.length) output += `**Concepts:** ${llmContent.concepts.join(', ')}\n\n`;
-      if (llmContent.entities?.length) output += `**Entities:** ${llmContent.entities.join(', ')}\n\n`;
-      if (llmContent.suggestedTags?.length) output += `**Tags:** ${llmContent.suggestedTags.join(', ')}\n\n`;
     }
 
     if (metadataMatch) {

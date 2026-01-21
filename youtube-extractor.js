@@ -89,7 +89,7 @@ async function processWithLLM(transcript, title) {
     return null;
   }
 
-  console.error('Processing with LLM...');
+  console.error('Processing...');
 
   const model = 'gpt-4o-mini';
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
