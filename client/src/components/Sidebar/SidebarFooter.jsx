@@ -1,9 +1,11 @@
 import { useTheme } from '../../hooks/useTheme';
 import { useApp } from '../../context/AppContext';
+import { useMetadataStreamliner } from '../../hooks/useMetadataStreamliner';
 
 export function SidebarFooter() {
   const { isDark, toggleTheme } = useTheme();
   const { actions } = useApp();
+  const { openModal } = useMetadataStreamliner();
 
   return (
     <div className="sidebar-footer">
@@ -16,6 +18,14 @@ export function SidebarFooter() {
         <span className="material-symbols-outlined">
           {isDark ? 'light_mode' : 'dark_mode'}
         </span>
+      </button>
+      <button
+        className="sidebar-footer-btn"
+        id="streamliner-btn"
+        title="Streamline metadata across all documents"
+        onClick={openModal}
+      >
+        <span className="material-symbols-outlined">auto_fix_high</span>
       </button>
       <button
         className="sidebar-footer-btn"

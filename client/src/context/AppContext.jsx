@@ -60,6 +60,13 @@ const initialState = {
   annotations: [],
   // Pending annotation being streamed (persists across page changes)
   pendingAnnotation: null, // { filename, selectedText, section, question, response, isStreaming, error }
+
+  // Metadata Streamliner
+  streamlinerModalOpen: false,
+  streamlinerPhase: 'setup', // 'setup' | 'analyzing' | 'review' | 'applying' | 'complete'
+  streamlinerProgress: null, // { type, processed, total, current, message, field, count }
+  streamlinerProposedChanges: null,
+  streamlinerResult: null, // { updatedFiles, indexFile }
 };
 
 // Action types
@@ -94,6 +101,12 @@ const ActionTypes = {
   CLEAR_PENDING_ANNOTATION: 'CLEAR_PENDING_ANNOTATION',
   CLEAR_CURRENT: 'CLEAR_CURRENT',
   UPDATE_STATE: 'UPDATE_STATE',
+  SET_STREAMLINER_MODAL: 'SET_STREAMLINER_MODAL',
+  SET_STREAMLINER_PHASE: 'SET_STREAMLINER_PHASE',
+  SET_STREAMLINER_PROGRESS: 'SET_STREAMLINER_PROGRESS',
+  SET_STREAMLINER_PROPOSED_CHANGES: 'SET_STREAMLINER_PROPOSED_CHANGES',
+  SET_STREAMLINER_RESULT: 'SET_STREAMLINER_RESULT',
+  RESET_STREAMLINER: 'RESET_STREAMLINER',
 };
 
 // Reducer
@@ -225,6 +238,31 @@ function appReducer(state, action) {
     case ActionTypes.UPDATE_STATE:
       return { ...state, ...action.payload };
 
+    case ActionTypes.SET_STREAMLINER_MODAL:
+      return { ...state, streamlinerModalOpen: action.payload };
+
+    case ActionTypes.SET_STREAMLINER_PHASE:
+      return { ...state, streamlinerPhase: action.payload };
+
+    case ActionTypes.SET_STREAMLINER_PROGRESS:
+      return { ...state, streamlinerProgress: action.payload };
+
+    case ActionTypes.SET_STREAMLINER_PROPOSED_CHANGES:
+      return { ...state, streamlinerProposedChanges: action.payload };
+
+    case ActionTypes.SET_STREAMLINER_RESULT:
+      return { ...state, streamlinerResult: action.payload };
+
+    case ActionTypes.RESET_STREAMLINER:
+      return {
+        ...state,
+        streamlinerModalOpen: false,
+        streamlinerPhase: 'setup',
+        streamlinerProgress: null,
+        streamlinerProposedChanges: null,
+        streamlinerResult: null,
+      };
+
     default:
       return state;
   }
@@ -344,6 +382,25 @@ export function AppProvider({ children }) {
 
     updateState: (updates) =>
       dispatch({ type: ActionTypes.UPDATE_STATE, payload: updates }),
+
+    // Streamliner actions
+    setStreamlinerModalOpen: (open) =>
+      dispatch({ type: ActionTypes.SET_STREAMLINER_MODAL, payload: open }),
+
+    setStreamlinerPhase: (phase) =>
+      dispatch({ type: ActionTypes.SET_STREAMLINER_PHASE, payload: phase }),
+
+    setStreamlinerProgress: (progress) =>
+      dispatch({ type: ActionTypes.SET_STREAMLINER_PROGRESS, payload: progress }),
+
+    setStreamlinerProposedChanges: (changes) =>
+      dispatch({ type: ActionTypes.SET_STREAMLINER_PROPOSED_CHANGES, payload: changes }),
+
+    setStreamlinerResult: (result) =>
+      dispatch({ type: ActionTypes.SET_STREAMLINER_RESULT, payload: result }),
+
+    resetStreamliner: () =>
+      dispatch({ type: ActionTypes.RESET_STREAMLINER }),
 
     // Abort controller management
     setAbortController: (controller) => {

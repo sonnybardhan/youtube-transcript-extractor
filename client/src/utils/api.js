@@ -100,6 +100,181 @@ export async function deleteAnnotation(filename, annotationId) {
 }
 
 /**
+ * Metadata Streamliner API functions
+ */
+export async function fetchMetadataStats() {
+  const res = await fetch('/api/metadata/stats');
+  if (!res.ok) throw new Error('Failed to load metadata stats');
+  return res.json();
+}
+
+export async function fetchMetadataPreview(files = []) {
+  const params = files.length > 0 ? `?files=${encodeURIComponent(JSON.stringify(files))}` : '';
+  const res = await fetch(`/api/metadata/preview${params}`);
+  if (!res.ok) throw new Error('Failed to load metadata preview');
+  return res.json();
+}
+
+export async function applyMetadataChanges(proposedChanges) {
+  const res = await fetch('/api/metadata/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ proposedChanges })
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || 'Failed to apply changes');
+  }
+  return res.json();
+}
+
+/**
+ * Create a streaming request for applying metadata changes with progress
+ */
+export function createApplyStream(proposedChanges, handlers) {
+  const controller = new AbortController();
+
+  const fetchPromise = fetch('/api/metadata/apply/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ proposedChanges }),
+    signal: controller.signal,
+  });
+
+  fetchPromise
+    .then(async (response) => {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            try {
+              const parsed = JSON.parse(data);
+
+              if (parsed.type === 'error') {
+                handlers.onError?.(new Error(parsed.error));
+                return;
+              }
+
+              if (parsed.type === 'complete') {
+                handlers.onComplete?.(parsed.result);
+                return;
+              }
+
+              if (parsed.type === 'progress') {
+                handlers.onProgress?.({
+                  current: parsed.current,
+                  total: parsed.total,
+                  currentFile: parsed.file,
+                });
+              }
+            } catch {
+              // Skip malformed JSON
+            }
+          }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError') {
+        handlers.onError?.(err);
+      }
+    });
+
+  return {
+    abort: () => controller.abort(),
+  };
+}
+
+/**
+ * Create a streaming request for metadata analysis
+ */
+export function createMetadataAnalysisStream(llm, handlers) {
+  const controller = new AbortController();
+
+  const fetchPromise = fetch('/api/metadata/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ llm }),
+    signal: controller.signal,
+  });
+
+  fetchPromise
+    .then(async (response) => {
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            try {
+              const parsed = JSON.parse(data);
+
+              if (parsed.type === 'error') {
+                handlers.onError?.(new Error(parsed.error));
+                return;
+              }
+
+              if (parsed.type === 'complete') {
+                handlers.onComplete?.(parsed.proposedChanges);
+                return;
+              }
+
+              if (parsed.type === 'fieldComplete') {
+                handlers.onFieldComplete?.(parsed);
+              }
+
+              if (parsed.type === 'analyzing' || parsed.type === 'collecting') {
+                handlers.onProgress?.(parsed);
+              }
+            } catch {
+              // Skip malformed JSON
+            }
+          }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError') {
+        handlers.onError?.(err);
+      }
+    });
+
+  return {
+    abort: () => controller.abort(),
+  };
+}
+
+/**
  * Create a streaming request for LLM processing
  */
 export function createStreamingRequest(url, body, handlers) {

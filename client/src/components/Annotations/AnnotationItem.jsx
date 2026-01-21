@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 export function AnnotationItem({ annotation, onDelete }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const formatDate = (timestamp) => {
     const date = new Date(timestamp);
@@ -22,11 +23,22 @@ export function AnnotationItem({ annotation, onDelete }) {
     ? annotation.response.slice(0, 200) + '...'
     : annotation.response;
 
-  const handleDelete = (e) => {
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = (e) => {
     e.stopPropagation();
     if (onDelete) {
       onDelete(annotation.id);
     }
+    setShowDeleteConfirm(false);
+  };
+
+  const handleCancelDelete = (e) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(false);
   };
 
   return (
@@ -36,13 +48,33 @@ export function AnnotationItem({ annotation, onDelete }) {
           <span className="annotation-item-section">{annotation.section}</span>
           <span className="annotation-item-date">{formatDate(annotation.timestamp)}</span>
         </div>
-        <button
-          className="annotation-item-delete"
-          onClick={handleDelete}
-          title="Delete annotation"
-        >
-          <span className="material-symbols-outlined">delete</span>
-        </button>
+        {showDeleteConfirm ? (
+          <div className="annotation-delete-confirm">
+            <span className="confirm-text">Delete?</span>
+            <button
+              className="confirm-btn confirm-yes"
+              onClick={handleConfirmDelete}
+              title="Confirm delete"
+            >
+              <span className="material-symbols-outlined">check</span>
+            </button>
+            <button
+              className="confirm-btn confirm-no"
+              onClick={handleCancelDelete}
+              title="Cancel"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            className="annotation-item-delete"
+            onClick={handleDeleteClick}
+            title="Delete annotation"
+          >
+            <span className="material-symbols-outlined">delete</span>
+          </button>
+        )}
       </div>
 
       <div className="annotation-item-selection">

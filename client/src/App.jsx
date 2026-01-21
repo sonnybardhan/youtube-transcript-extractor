@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar/Sidebar';
 import { MainContent } from './components/Main/MainContent';
 import { PromptModal } from './components/Modals/PromptModal';
 import { DeleteModal } from './components/Modals/DeleteModal';
+import { StreamlinerModal } from './components/MetadataStreamliner';
 import { Toast } from './components/common/Toast';
 import './styles.css';
 
@@ -17,6 +18,7 @@ function App() {
       {/* Modals */}
       <PromptModal />
       <DeleteModal />
+      <StreamlinerModal />
 
       {/* Toast notifications */}
       <Toast />

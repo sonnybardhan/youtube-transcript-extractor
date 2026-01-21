@@ -22,6 +22,8 @@ import {
   streamWithLLM,
   convertToSubheadings,
   streamAnnotationResponse,
+  streamMetadataAnalysis,
+  applyMetadataChanges,
 } from "./lib/extractor.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -869,6 +871,296 @@ Provide a clear, insightful explanation in 200-300 words. Draw on your expertise
     res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
     res.end();
   }
+});
+
+// Metadata Streamliner - Analyze signal files
+app.post("/api/metadata/analyze", async (req, res) => {
+  const { llm } = req.body;
+
+  // Build LLM config
+  let llmConfig = null;
+  if (llm?.provider && llm?.model) {
+    const apiKey = getApiKeyForProvider(llm.provider);
+
+    if (apiKey) {
+      llmConfig = {
+        provider: llm.provider,
+        model: llm.model,
+        apiKey,
+      };
+    }
+  }
+
+  if (!llmConfig) {
+    return res.status(400).json({ error: "Valid LLM configuration required" });
+  }
+
+  // Get files filter (convert .md to .signal.json)
+  const filterFiles = llm?.files?.map((f) => f.replace(/\.md$/, ".signal.json")) || null;
+
+  // Set up SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  try {
+    const onProgress = (progress) => {
+      // Preserve the original type from the progress event
+      res.write(`data: ${JSON.stringify(progress)}\n\n`);
+    };
+
+    const result = await streamMetadataAnalysis(llmConfig, onProgress, filterFiles);
+
+    if (result.error) {
+      res.write(`data: ${JSON.stringify({ type: "error", error: result.error })}\n\n`);
+    } else {
+      res.write(`data: ${JSON.stringify({ type: "complete", proposedChanges: result.proposedChanges })}\n\n`);
+    }
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: "error", error: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Metadata Streamliner - Apply proposed changes
+app.post("/api/metadata/apply", (req, res) => {
+  const { proposedChanges } = req.body;
+
+  if (!proposedChanges) {
+    return res.status(400).json({ error: "proposedChanges is required" });
+  }
+
+  try {
+    const result = applyMetadataChanges(proposedChanges);
+    res.json({
+      success: true,
+      updatedFiles: result.updatedFiles.length,
+      indexFile: result.indexFile,
+      files: result.updatedFiles,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Streaming version of metadata apply with progress
+app.post("/api/metadata/apply/stream", (req, res) => {
+  const { proposedChanges } = req.body;
+
+  if (!proposedChanges) {
+    return res.status(400).json({ error: "proposedChanges is required" });
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  try {
+    const { concepts, entities, tags, categories } = proposedChanges;
+
+    // Build lookup maps: alias -> canonical
+    const conceptMap = {};
+    concepts.forEach((c) => {
+      c.aliases.forEach((alias) => {
+        conceptMap[alias] = c.canonical;
+      });
+    });
+
+    const entityMap = {};
+    entities.forEach((e) => {
+      e.aliases.forEach((alias) => {
+        entityMap[alias] = e.canonical;
+      });
+    });
+
+    const tagMap = {};
+    tags.forEach((t) => {
+      t.aliases.forEach((alias) => {
+        tagMap[alias] = t.canonical;
+      });
+    });
+
+    const categoryMap = {};
+    categories.forEach((c) => {
+      c.aliases.forEach((alias) => {
+        categoryMap[alias] = c.canonical;
+      });
+    });
+
+    // Get affected files
+    const affectedFiles = new Set();
+    [...concepts, ...entities, ...tags, ...categories].forEach((change) => {
+      change.files?.forEach((file) => affectedFiles.add(file));
+    });
+
+    const filesToProcess = Array.from(affectedFiles);
+    const total = filesToProcess.length;
+    const updatedFiles = [];
+
+    // Process files with progress
+    filesToProcess.forEach((filename, index) => {
+      // Convert .md filename to .signal.json
+      const signalFilename = filename.replace(/\.md$/, ".signal.json");
+      const filePath = join(getTempDir(), signalFilename);
+
+      // Send progress
+      res.write(`data: ${JSON.stringify({
+        type: "progress",
+        current: index + 1,
+        total,
+        file: filename,
+      })}\n\n`);
+
+      try {
+        if (!existsSync(filePath)) return;
+
+        const content = JSON.parse(readFileSync(filePath, "utf-8"));
+        let changed = false;
+
+        // Normalize concepts
+        if (content.concepts) {
+          const newConcepts = [...new Set(
+            content.concepts.map((c) => conceptMap[c] || c)
+          )];
+          if (JSON.stringify(newConcepts) !== JSON.stringify(content.concepts)) {
+            content.concepts = newConcepts;
+            changed = true;
+          }
+        }
+
+        // Normalize entities
+        if (content.entities) {
+          const newEntities = [...new Set(
+            content.entities.map((e) => entityMap[e] || e)
+          )];
+          if (JSON.stringify(newEntities) !== JSON.stringify(content.entities)) {
+            content.entities = newEntities;
+            changed = true;
+          }
+        }
+
+        // Normalize tags
+        if (content.suggestedTags) {
+          const newTags = [...new Set(
+            content.suggestedTags.map((t) => tagMap[t] || t)
+          )];
+          if (JSON.stringify(newTags) !== JSON.stringify(content.suggestedTags)) {
+            content.suggestedTags = newTags;
+            changed = true;
+          }
+        }
+
+        // Normalize category
+        if (content.category && categoryMap[content.category]) {
+          const newCategory = categoryMap[content.category];
+          if (newCategory !== content.category) {
+            content.category = newCategory;
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          writeFileSync(filePath, JSON.stringify(content, null, 2));
+          updatedFiles.push(filename);
+        }
+      } catch (err) {
+        console.error(`Error updating ${filename}:`, err.message);
+      }
+    });
+
+    // Build metadata index
+    const indexPath = join(getTempDir(), "metadata-index.json");
+    const index = {
+      concepts: [...new Set(concepts.map((c) => c.canonical))],
+      entities: [...new Set(entities.map((e) => e.canonical))],
+      tags: [...new Set(tags.map((t) => t.canonical))],
+      categories: [...new Set(categories.map((c) => c.canonical))],
+      updatedAt: new Date().toISOString(),
+    };
+    writeFileSync(indexPath, JSON.stringify(index, null, 2));
+
+    // Send completion
+    res.write(`data: ${JSON.stringify({
+      type: "complete",
+      result: {
+        updatedFiles: updatedFiles.length,
+        indexFile: "metadata-index.json",
+        files: updatedFiles,
+      },
+    })}\n\n`);
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: "error", error: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Get signal file count for metadata streamliner
+app.get("/api/metadata/stats", (_req, res) => {
+  const tempDir = getTempDir();
+
+  if (!existsSync(tempDir)) {
+    return res.json({ signalFileCount: 0 });
+  }
+
+  const signalFiles = readdirSync(tempDir).filter((f) => f.endsWith(".signal.json"));
+  res.json({ signalFileCount: signalFiles.length });
+});
+
+// Get metadata preview for streamliner - shows all unique terms
+app.get("/api/metadata/preview", (req, res) => {
+  const tempDir = getTempDir();
+
+  if (!existsSync(tempDir)) {
+    return res.json({ concepts: [], entities: [], tags: [], categories: [], fileCount: 0 });
+  }
+
+  // Parse optional files filter from query
+  let filterFiles = null;
+  if (req.query.files) {
+    try {
+      filterFiles = JSON.parse(req.query.files);
+    } catch {
+      // Ignore invalid JSON
+    }
+  }
+
+  let signalFiles = readdirSync(tempDir).filter((f) => f.endsWith(".signal.json"));
+
+  // Filter to only selected files if filter provided
+  if (filterFiles && filterFiles.length > 0) {
+    const filterSet = new Set(filterFiles.map((f) => f.replace(/\.md$/, ".signal.json")));
+    signalFiles = signalFiles.filter((f) => filterSet.has(f));
+  }
+
+  const allConcepts = new Set();
+  const allEntities = new Set();
+  const allTags = new Set();
+  const allCategories = new Set();
+
+  signalFiles.forEach((filename) => {
+    const filePath = join(tempDir, filename);
+    try {
+      const content = JSON.parse(readFileSync(filePath, "utf-8"));
+      (content.concepts || []).forEach((c) => allConcepts.add(c));
+      (content.entities || []).forEach((e) => allEntities.add(e));
+      (content.suggestedTags || []).forEach((t) => allTags.add(t));
+      if (content.category) allCategories.add(content.category);
+    } catch {
+      // Skip files that can't be parsed
+    }
+  });
+
+  res.json({
+    concepts: [...allConcepts].sort(),
+    entities: [...allEntities].sort(),
+    tags: [...allTags].sort(),
+    categories: [...allCategories].sort(),
+    fileCount: signalFiles.length,
+  });
 });
 
 // Get available API keys status (without exposing the keys)
