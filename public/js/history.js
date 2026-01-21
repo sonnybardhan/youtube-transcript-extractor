@@ -5,7 +5,7 @@ import { getElements } from './elements.js';
 import { getState, setState } from './state.js';
 import { formatDate } from './utils.js';
 import { showToast } from './ui.js';
-import { showResultsView, updateSignalPane, updateInfoPane } from './views.js';
+import { showResultsView, showInputView, updateSignalPane, updateInfoPane } from './views.js';
 
 // Selection state
 let selectedItems = new Set();
@@ -123,7 +123,23 @@ async function deleteSelectedItems() {
 
   if (!confirm(`Delete ${count} selected extraction${count > 1 ? 's' : ''}?`)) return;
 
+  const elements = getElements();
+  const currentFilename = getState('currentFilename');
   const itemsToDelete = [...selectedItems];
+  const deletingCurrent = itemsToDelete.includes(currentFilename);
+
+  // Find first non-deleted item to select after bulk delete
+  let nextFilename = null;
+  if (deletingCurrent) {
+    const items = Array.from(elements.historyList.querySelectorAll('.history-item'));
+    for (const item of items) {
+      if (!itemsToDelete.includes(item.dataset.filename)) {
+        nextFilename = item.dataset.filename;
+        break;
+      }
+    }
+  }
+
   let errors = [];
 
   for (const filename of itemsToDelete) {
@@ -141,6 +157,21 @@ async function deleteSelectedItems() {
 
   clearSelection();
   await loadHistory();
+
+  // Auto-select next available item if current was deleted
+  if (deletingCurrent && !errors.includes(currentFilename)) {
+    if (nextFilename && !itemsToDelete.includes(nextFilename)) {
+      await loadHistoryItem(nextFilename);
+    } else {
+      // Check if any items remain after reload
+      const remainingItems = elements.historyList.querySelectorAll('.history-item');
+      if (remainingItems.length > 0) {
+        await loadHistoryItem(remainingItems[0].dataset.filename);
+      } else {
+        showInputView();
+      }
+    }
+  }
 
   if (errors.length > 0) {
     showToast(`Failed to delete ${errors.length} item${errors.length > 1 ? 's' : ''}`);
@@ -408,6 +439,22 @@ export async function loadHistoryItem(filename) {
 export async function deleteHistoryItem(filename) {
   if (!confirm('Delete this extraction?')) return;
 
+  const elements = getElements();
+  const currentFilename = getState('currentFilename');
+  const wasActive = filename === currentFilename;
+
+  // Find next/previous item before deletion
+  let nextFilename = null;
+  if (wasActive) {
+    const items = Array.from(elements.historyList.querySelectorAll('.history-item'));
+    const currentIndex = items.findIndex(item => item.dataset.filename === filename);
+    if (currentIndex !== -1) {
+      // Prefer next item, fallback to previous
+      const nextItem = items[currentIndex + 1] || items[currentIndex - 1];
+      nextFilename = nextItem?.dataset.filename || null;
+    }
+  }
+
   try {
     const res = await fetch(`/api/history/${encodeURIComponent(filename)}`, {
       method: 'DELETE'
@@ -415,6 +462,16 @@ export async function deleteHistoryItem(filename) {
     if (!res.ok) throw new Error('Failed to delete');
 
     await loadHistory();
+
+    // Auto-select next/previous item if the deleted item was active
+    if (wasActive) {
+      if (nextFilename) {
+        await loadHistoryItem(nextFilename);
+      } else {
+        // No items left - go back to input view
+        showInputView();
+      }
+    }
   } catch (err) {
     showToast(err.message);
   }

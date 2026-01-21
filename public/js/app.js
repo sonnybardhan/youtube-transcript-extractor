@@ -95,8 +95,10 @@ function setupEventListeners() {
   // Theme toggle
   elements.themeToggleBtn.addEventListener('click', toggleTheme);
 
+  // Settings button opens prompt modal
+  elements.settingsBtn.addEventListener('click', openPromptModal);
+
   // Modal controls
-  elements.editPromptBtn.addEventListener('click', openPromptModal);
   elements.modalClose.addEventListener('click', closePromptModal);
   elements.promptCancel.addEventListener('click', closePromptModal);
   elements.promptSave.addEventListener('click', savePrompt);

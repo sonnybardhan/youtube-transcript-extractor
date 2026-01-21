@@ -17,7 +17,6 @@ export function initElements() {
     compressionSlider: document.getElementById('compression-slider'),
     compressionValue: document.getElementById('compression-value'),
     extractBtn: document.getElementById('extract-btn'),
-    editPromptBtn: document.getElementById('edit-prompt-btn'),
     newExtractionBtn: document.getElementById('new-extraction-btn'),
 
     // History
@@ -43,8 +42,9 @@ export function initElements() {
     signalTab: document.getElementById('signal-tab'),
     toggleInfoPane: document.getElementById('toggle-info-pane'),
 
-    // Theme
+    // Theme & Settings
     themeToggleBtn: document.getElementById('theme-toggle-btn'),
+    settingsBtn: document.getElementById('settings-btn'),
 
     // Loading & Status
     loadingOverlay: document.getElementById('loading-overlay'),
