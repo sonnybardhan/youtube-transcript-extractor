@@ -238,7 +238,9 @@ body {
   font-size: 12px;
   font-weight: 600;
   font-family: var(--font-display);
-  transition: opacity 0.15s ease, background 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
 }
 
 .bulk-delete-btn:hover {
@@ -401,7 +403,9 @@ body {
   cursor: pointer;
   border-radius: 6px;
   font-family: var(--font-display);
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   flex-shrink: 0;
 }
 
@@ -962,7 +966,7 @@ body {
 
 /* Info Pane (Right Panel) */
 .info-pane {
-  width: 380px;
+  width: 600px;
   border-left: 1px solid var(--border-dark);
   display: flex;
   flex-direction: column;
@@ -2072,6 +2076,362 @@ body {
 }
 
 /* ========================================
+   Annotation Feature
+   ======================================== */
+
+/* Selection Toolbar */
+.selection-toolbar {
+  z-index: 100;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.selection-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--primary);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.selection-toolbar-btn:hover {
+  background: var(--primary-hover);
+}
+
+.selection-toolbar-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+/* Annotation Modal */
+.annotation-modal {
+  max-width: 600px;
+  max-height: 80vh;
+}
+
+.annotation-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.annotation-selection label,
+.annotation-question label,
+.annotation-response label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.annotation-selection blockquote {
+  margin: 0;
+  padding: 12px 16px;
+  background: rgba(18, 108, 135, 0.1);
+  border-left: 3px solid var(--primary);
+  border-radius: 0 6px 6px 0;
+  font-size: 14px;
+  color: var(--text-main);
+  line-height: 1.6;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.annotation-question {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.annotation-question textarea {
+  width: 100%;
+  padding: 12px;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  color: var(--text-main);
+  font-size: 14px;
+  font-family: var(--font-display);
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.annotation-question textarea:focus {
+  border-color: var(--primary);
+}
+
+.annotation-question textarea:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.annotation-response {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 150px;
+}
+
+.annotation-response-content {
+  flex: 1;
+  padding: 16px;
+  background: var(--editor-bg);
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.annotation-response-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-main);
+  white-space: pre-wrap;
+}
+
+.annotation-response-placeholder {
+  font-size: 14px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.annotation-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--error);
+  font-size: 14px;
+}
+
+.annotation-error .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.modal-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 4px 8px;
+  background: var(--surface-dark);
+  border-radius: 4px;
+}
+
+.model-tag .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.category-badge-small {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: rgba(18, 108, 135, 0.2);
+  color: var(--primary);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+/* Annotations Tab in InfoPane */
+.annotations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.annotation-item {
+  padding: 16px;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.annotation-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.annotation-item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.annotation-item-section {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--primary);
+}
+
+.annotation-item-date {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.annotation-item-delete {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  opacity: 0;
+}
+
+.annotation-item:hover .annotation-item-delete {
+  opacity: 1;
+}
+
+.annotation-item-delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error);
+}
+
+.annotation-item-delete .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.annotation-item-selection {
+  padding: 10px 12px;
+  background: rgba(18, 108, 135, 0.08);
+  border-left: 2px solid var(--primary);
+  border-radius: 0 4px 4px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.annotation-item-question {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.annotation-item-response {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  padding: 12px;
+  background: var(--editor-bg);
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.annotation-item-model {
+  font-size: 11px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.annotation-item-model .material-symbols-outlined {
+  font-size: 14px;
+}
+
+/* Annotations empty state */
+.annotations-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.annotations-empty .material-symbols-outlined {
+  font-size: 48px;
+  opacity: 0.5;
+  margin-bottom: 12px;
+}
+
+.annotations-empty p {
+  font-size: 13px;
+  margin: 0;
+}
+
+.annotations-empty .hint {
+  font-size: 12px;
+  margin-top: 8px;
+  color: var(--text-dim);
+}
+
+/* Tab count badge */
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 9px;
+  margin-left: 4px;
+}
+
+.info-pane.collapsed .tab-count {
+  display: none;
+}
+
+/* Expand button in annotation response */
+.expand-btn {
+  display: inline;
+  padding: 0;
+  margin-left: 4px;
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-display);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.expand-btn:hover {
+  text-decoration: underline;
+}
+
+/* ========================================
    Utility Classes
    ======================================== */
 .hidden {
@@ -2450,4 +2810,48 @@ html.light .entity-chip {
 html.light .tag-chip {
   background: rgba(251, 191, 36, 0.15);
   color: #b45309;
+}
+
+/* Light mode annotation styles */
+html.light .selection-toolbar {
+  background: var(--surface-dark);
+  border-color: var(--border-dark);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+html.light .annotation-selection blockquote {
+  background: rgba(13, 126, 168, 0.08);
+}
+
+html.light .annotation-question textarea {
+  background: var(--surface-dark);
+  border-color: var(--border-dark);
+  color: var(--text-main);
+}
+
+html.light .annotation-response-content {
+  background: var(--editor-bg);
+  border-color: var(--border-dark);
+}
+
+html.light .annotation-item {
+  background: var(--surface-dark);
+  border-color: var(--border-dark);
+}
+
+html.light .annotation-item-selection {
+  background: rgba(13, 126, 168, 0.06);
+}
+
+html.light .model-tag {
+  background: var(--surface-darker);
+}
+
+html.light .category-badge-small {
+  background: rgba(13, 126, 168, 0.15);
+}
+
+html.light .annotation-item-response {
+  background: var(--editor-bg);
+  border-color: var(--border-dark);
 }

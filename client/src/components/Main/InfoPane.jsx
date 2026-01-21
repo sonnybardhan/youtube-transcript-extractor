@@ -1,4 +1,6 @@
 import { useApp } from '../../context/AppContext';
+import { AnnotationItem } from '../Annotations/AnnotationItem';
+import { useAnnotation } from '../../hooks/useAnnotation';
 
 function TranscriptTab({ metadata, transcript }) {
   const content = metadata?.transcriptFormatted || metadata?.transcript || transcript;
@@ -122,17 +124,55 @@ function SignalTab({ signalData }) {
   );
 }
 
+function AnnotationsTab({ annotations, onDelete }) {
+  if (!annotations || annotations.length === 0) {
+    return (
+      <div className="annotations-empty">
+        <span className="material-symbols-outlined">edit_note</span>
+        <p>No annotations yet</p>
+        <p className="hint">Select text in the summary and click "Ask LLM" to create annotations</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="annotations-list">
+      {annotations.map((annotation) => (
+        <AnnotationItem
+          key={annotation.id}
+          annotation={annotation}
+          onDelete={onDelete}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function InfoPane() {
   const { state, actions } = useApp();
-  const { infoPaneCollapsed, activeInfoTab, currentMetadata, originalTranscript, signalData } = state;
+  const { infoPaneCollapsed, activeInfoTab, currentMetadata, originalTranscript, signalData, annotations } = state;
+  const { deleteAnnotation } = useAnnotation();
 
   const tabs = [
     { id: 'transcript', label: 'Transcript', icon: 'description' },
     { id: 'metadata', label: 'Metadata', icon: 'info' },
     { id: 'signal', label: 'Signal', icon: 'sensors' },
+    { id: 'annotations', label: 'Notes', icon: 'edit_note', count: annotations?.length || 0 },
   ];
 
+  const handleDeleteAnnotation = async (annotationId) => {
+    try {
+      await deleteAnnotation(annotationId);
+    } catch (err) {
+      actions.showToast(err.message);
+    }
+  };
+
   const handleTabClick = (tabId) => {
+    // Expand the pane if collapsed
+    if (infoPaneCollapsed) {
+      actions.setInfoPaneCollapsed(false);
+    }
     actions.setActiveInfoTab(tabId);
   };
 
@@ -153,6 +193,7 @@ export function InfoPane() {
             >
               <span className="material-symbols-outlined">{tab.icon}</span>
               <span>{tab.label}</span>
+              {tab.count > 0 && <span className="tab-count">{tab.count}</span>}
             </button>
           ))}
         </div>
@@ -174,6 +215,9 @@ export function InfoPane() {
         </div>
         <div className={`info-tab-content ${activeInfoTab === 'signal' ? 'active' : ''}`}>
           <SignalTab signalData={signalData} />
+        </div>
+        <div className={`info-tab-content ${activeInfoTab === 'annotations' ? 'active' : ''}`}>
+          <AnnotationsTab annotations={annotations} onDelete={handleDeleteAnnotation} />
         </div>
       </div>
     </aside>

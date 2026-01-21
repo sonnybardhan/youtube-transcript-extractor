@@ -1,8 +1,9 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import DOMPurify from 'dompurify';
 import { useApp } from '../../context/AppContext';
 import { renderMarkdownToHTML, parseMarkdownContent } from '../../utils/markdown';
 import { parseInlineMarkdown } from '../../utils/helpers';
+import { SelectionToolbar } from '../Annotations/SelectionToolbar';
 
 // Loading skeleton component
 function LoadingSection({ title }) {
@@ -47,10 +48,20 @@ function InlineMarkdown({ text }) {
   return <span ref={ref} />;
 }
 
-export function OutputPane({ streamingSections, isStreaming }) {
+export function OutputPane({ streamingSections, isStreaming, onAskLLM }) {
   const { state } = useApp();
-  const { currentMarkdown, currentMetadata, currentModel } = state;
+  const { currentMarkdown, currentMetadata, currentModel, signalData } = state;
   const outputRef = useRef(null);
+
+  // Handle text selection for annotation
+  const handleSelectionAsk = useCallback((selectionData) => {
+    if (onAskLLM) {
+      onAskLLM({
+        ...selectionData,
+        category: signalData?.category || null,
+      });
+    }
+  }, [onAskLLM, signalData]);
 
   const title = currentMetadata?.title || 'Loading...';
 
@@ -197,6 +208,9 @@ export function OutputPane({ streamingSections, isStreaming }) {
 
   // Container for final rendered markdown
   return (
-    <div key={renderMode} id="output" className="output-container" ref={outputRef} />
+    <>
+      <div key={renderMode} id="output" className="output-container" ref={outputRef} />
+      <SelectionToolbar containerRef={outputRef} onAskLLM={handleSelectionAsk} />
+    </>
   );
 }

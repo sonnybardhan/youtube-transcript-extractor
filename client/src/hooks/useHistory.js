@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { fetchHistoryItem, deleteHistoryItem as apiDeleteHistoryItem } from '../utils/api';
+import { fetchHistoryItem, deleteHistoryItem as apiDeleteHistoryItem, fetchAnnotations } from '../utils/api';
 import { parseMetadataForRerun, parseKnowledgeGraph } from '../utils/markdown';
 
 export function useHistory() {
@@ -27,7 +27,11 @@ export function useHistory() {
     }
 
     try {
-      const data = await fetchHistoryItem(filename);
+      // Fetch both file content and annotations in parallel
+      const [data, annotations] = await Promise.all([
+        fetchHistoryItem(filename),
+        fetchAnnotations(filename).catch(() => []), // Don't fail if no annotations
+      ]);
 
       // Extract title from markdown
       const titleMatch = data.content.match(/^#\s+(.+)$/m);
@@ -51,6 +55,9 @@ export function useHistory() {
         const knowledgeGraph = parseKnowledgeGraph(data.content);
         actions.setSignalData(knowledgeGraph);
       }
+
+      // Load annotations
+      actions.setAnnotations(annotations);
 
       actions.setView('results');
       return { success: true, content: data.content, title };

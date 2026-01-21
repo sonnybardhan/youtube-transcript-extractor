@@ -55,6 +55,11 @@ const initialState = {
 
   // Signal data
   signalData: null,
+
+  // Annotations
+  annotations: [],
+  annotationModalOpen: false,
+  annotationModalData: null, // { selectedText, section, surroundingText }
 };
 
 // Action types
@@ -81,6 +86,10 @@ const ActionTypes = {
   SET_INFO_PANE_COLLAPSED: 'SET_INFO_PANE_COLLAPSED',
   SET_ACTIVE_INFO_TAB: 'SET_ACTIVE_INFO_TAB',
   SET_SIGNAL_DATA: 'SET_SIGNAL_DATA',
+  SET_ANNOTATIONS: 'SET_ANNOTATIONS',
+  ADD_ANNOTATION: 'ADD_ANNOTATION',
+  DELETE_ANNOTATION: 'DELETE_ANNOTATION',
+  SET_ANNOTATION_MODAL: 'SET_ANNOTATION_MODAL',
   CLEAR_CURRENT: 'CLEAR_CURRENT',
   UPDATE_STATE: 'UPDATE_STATE',
 };
@@ -173,6 +182,25 @@ function appReducer(state, action) {
     case ActionTypes.SET_SIGNAL_DATA:
       return { ...state, signalData: action.payload };
 
+    case ActionTypes.SET_ANNOTATIONS:
+      return { ...state, annotations: action.payload };
+
+    case ActionTypes.ADD_ANNOTATION:
+      return { ...state, annotations: [...state.annotations, action.payload] };
+
+    case ActionTypes.DELETE_ANNOTATION:
+      return {
+        ...state,
+        annotations: state.annotations.filter((a) => a.id !== action.payload),
+      };
+
+    case ActionTypes.SET_ANNOTATION_MODAL:
+      return {
+        ...state,
+        annotationModalOpen: action.payload.open,
+        annotationModalData: action.payload.data ?? state.annotationModalData,
+      };
+
     case ActionTypes.CLEAR_CURRENT:
       return {
         ...state,
@@ -182,6 +210,7 @@ function appReducer(state, action) {
         originalTranscript: '',
         currentModel: null,
         signalData: null,
+        annotations: [],
       };
 
     case ActionTypes.UPDATE_STATE:
@@ -282,6 +311,18 @@ export function AppProvider({ children }) {
 
     setSignalData: (data) =>
       dispatch({ type: ActionTypes.SET_SIGNAL_DATA, payload: data }),
+
+    setAnnotations: (annotations) =>
+      dispatch({ type: ActionTypes.SET_ANNOTATIONS, payload: annotations }),
+
+    addAnnotation: (annotation) =>
+      dispatch({ type: ActionTypes.ADD_ANNOTATION, payload: annotation }),
+
+    deleteAnnotation: (id) =>
+      dispatch({ type: ActionTypes.DELETE_ANNOTATION, payload: id }),
+
+    setAnnotationModal: (open, data = null) =>
+      dispatch({ type: ActionTypes.SET_ANNOTATION_MODAL, payload: { open, data } }),
 
     clearCurrent: () =>
       dispatch({ type: ActionTypes.CLEAR_CURRENT }),

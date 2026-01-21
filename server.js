@@ -22,6 +22,7 @@ import {
   sanitizeFilename,
   streamWithLLM,
   convertToSubheadings,
+  streamAnnotationResponse,
 } from "./lib/extractor.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -686,7 +687,184 @@ app.delete("/api/history/:filename", (req, res) => {
     unlinkSync(signalPath);
   }
 
+  // Also delete associated annotations file if it exists
+  const annotationsPath = filePath.replace('.md', '.annotations.json');
+  if (existsSync(annotationsPath)) {
+    unlinkSync(annotationsPath);
+  }
+
   res.json({ success: true });
+});
+
+// Get annotations for a file
+app.get("/api/history/:filename/annotations", (req, res) => {
+  const tempDir = getTempDir();
+  const filename = req.params.filename;
+
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  const annotationsPath = join(tempDir, filename.replace('.md', '.annotations.json'));
+
+  const resolvedPath = resolve(annotationsPath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  if (!existsSync(annotationsPath)) {
+    return res.json([]);
+  }
+
+  try {
+    const annotations = JSON.parse(readFileSync(annotationsPath, "utf-8"));
+    res.json(annotations);
+  } catch {
+    res.json([]);
+  }
+});
+
+// Save annotation for a file
+app.post("/api/history/:filename/annotations", (req, res) => {
+  const tempDir = getTempDir();
+  const filename = req.params.filename;
+  const annotation = req.body;
+
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  if (!annotation || !annotation.id || !annotation.selectedText) {
+    return res.status(400).json({ error: "Invalid annotation data" });
+  }
+
+  const annotationsPath = join(tempDir, filename.replace('.md', '.annotations.json'));
+
+  const resolvedPath = resolve(annotationsPath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  // Load existing annotations or start with empty array
+  let annotations = [];
+  if (existsSync(annotationsPath)) {
+    try {
+      annotations = JSON.parse(readFileSync(annotationsPath, "utf-8"));
+    } catch {
+      annotations = [];
+    }
+  }
+
+  // Add new annotation
+  annotations.push(annotation);
+
+  writeFileSync(annotationsPath, JSON.stringify(annotations, null, 2));
+  res.json({ success: true, annotation });
+});
+
+// Delete a specific annotation
+app.delete("/api/history/:filename/annotations/:annotationId", (req, res) => {
+  const tempDir = getTempDir();
+  const { filename, annotationId } = req.params;
+
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  const annotationsPath = join(tempDir, filename.replace('.md', '.annotations.json'));
+
+  const resolvedPath = resolve(annotationsPath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  if (!existsSync(annotationsPath)) {
+    return res.status(404).json({ error: "Annotations file not found" });
+  }
+
+  try {
+    let annotations = JSON.parse(readFileSync(annotationsPath, "utf-8"));
+    const originalLength = annotations.length;
+    annotations = annotations.filter(a => a.id !== annotationId);
+
+    if (annotations.length === originalLength) {
+      return res.status(404).json({ error: "Annotation not found" });
+    }
+
+    if (annotations.length === 0) {
+      // Remove the file if no annotations left
+      unlinkSync(annotationsPath);
+    } else {
+      writeFileSync(annotationsPath, JSON.stringify(annotations, null, 2));
+    }
+
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: "Failed to delete annotation" });
+  }
+});
+
+// Stream LLM response for annotation questions
+app.post("/api/annotations/ask/stream", async (req, res) => {
+  const { selectedText, section, surroundingText, question, category, llm } = req.body;
+
+  if (!selectedText) {
+    return res.status(400).json({ error: "selectedText is required" });
+  }
+
+  // Build LLM config
+  let llmConfig = null;
+  if (llm?.provider && llm?.model) {
+    const apiKey = getApiKeyForProvider(llm.provider);
+
+    if (apiKey) {
+      llmConfig = {
+        provider: llm.provider,
+        model: llm.model,
+        apiKey,
+      };
+    }
+  }
+
+  if (!llmConfig) {
+    return res.status(400).json({ error: "Valid LLM configuration required" });
+  }
+
+  // Set up SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  // Build the prompt
+  const prompt = `You are an expert in ${category || 'this topic'}, helping clarify content from a video summary.
+
+**Selected text:** "${selectedText}"
+
+**Surrounding context:**
+${surroundingText || 'No additional context.'}
+
+**Question:** ${question || 'Explain this in more detail.'}
+
+Provide a clear, insightful explanation in 200-300 words. Draw on your expertise in ${category || 'the subject'} to give practical context that helps the reader deeply understand this concept.`;
+
+  try {
+    const onChunk = (chunk) => {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    };
+
+    const result = await streamAnnotationResponse(prompt, llmConfig, onChunk);
+
+    res.write(`data: ${JSON.stringify({ complete: true, response: result })}\n\n`);
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  }
 });
 
 // Get available API keys status (without exposing the keys)

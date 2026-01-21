@@ -69,6 +69,37 @@ export async function extractWithLLM(basicInfo, llm, compressionLevel, isRerun =
 }
 
 /**
+ * Annotation API functions
+ */
+export async function fetchAnnotations(filename) {
+  const res = await fetch(`/api/history/${encodeURIComponent(filename)}/annotations`);
+  if (!res.ok) {
+    if (res.status === 404) return []; // No annotations file yet
+    throw new Error('Failed to load annotations');
+  }
+  return res.json();
+}
+
+export async function saveAnnotation(filename, annotation) {
+  const res = await fetch(`/api/history/${encodeURIComponent(filename)}/annotations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(annotation)
+  });
+  if (!res.ok) throw new Error('Failed to save annotation');
+  return res.json();
+}
+
+export async function deleteAnnotation(filename, annotationId) {
+  const res = await fetch(
+    `/api/history/${encodeURIComponent(filename)}/annotations/${encodeURIComponent(annotationId)}`,
+    { method: 'DELETE' }
+  );
+  if (!res.ok) throw new Error('Failed to delete annotation');
+  return res.json();
+}
+
+/**
  * Create a streaming request for LLM processing
  */
 export function createStreamingRequest(url, body, handlers) {
