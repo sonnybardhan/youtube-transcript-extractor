@@ -24,6 +24,11 @@ import {
   streamAnnotationResponse,
   streamMetadataAnalysis,
   applyMetadataChanges,
+  buildMetadataIndex,
+  getMetadataIndex,
+  findRelatedVideos,
+  analyzeMultipleSummaries,
+  ANALYSIS_PROMPTS,
 } from "./lib/extractor.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -1110,6 +1115,47 @@ app.get("/api/metadata/stats", (_req, res) => {
   res.json({ signalFileCount: signalFiles.length });
 });
 
+// Get metadata index (for cross-referencing feature)
+app.get("/api/metadata/index", (_req, res) => {
+  try {
+    const index = getMetadataIndex();
+    if (!index) {
+      return res.json({ error: "Index not found. Run rebuild first.", index: null });
+    }
+    res.json({ index });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rebuild metadata index from signal files
+app.post("/api/metadata/index/rebuild", (_req, res) => {
+  try {
+    const index = buildMetadataIndex();
+    res.json({ success: true, index });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get related videos for a specific file
+app.get("/api/metadata/related/:filename", (req, res) => {
+  const { filename } = req.params;
+  const limit = parseInt(req.query.limit) || 5;
+
+  // Prevent path traversal
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  try {
+    const related = findRelatedVideos(filename, null, limit);
+    res.json({ related });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get metadata preview for streamliner - shows all unique terms
 app.get("/api/metadata/preview", (req, res) => {
   const tempDir = getTempDir();
@@ -1160,6 +1206,130 @@ app.get("/api/metadata/preview", (req, res) => {
     tags: [...allTags].sort(),
     categories: [...allCategories].sort(),
     fileCount: signalFiles.length,
+  });
+});
+
+// Multi-Summary Analysis - Stream analysis response
+app.post("/api/summaries/analyze/stream", async (req, res) => {
+  const { filenames, promptType, customPrompt, llm } = req.body;
+
+  if (!filenames || !Array.isArray(filenames) || filenames.length < 2) {
+    return res.status(400).json({ error: "At least 2 filenames are required" });
+  }
+
+  // Build LLM config
+  let llmConfig = null;
+  if (llm?.provider && llm?.model) {
+    const apiKey = getApiKeyForProvider(llm.provider);
+
+    if (apiKey) {
+      llmConfig = {
+        provider: llm.provider,
+        model: llm.model,
+        apiKey,
+      };
+    }
+  }
+
+  if (!llmConfig) {
+    return res.status(400).json({ error: "Valid LLM configuration required" });
+  }
+
+  // Load the content of each file
+  const tempDir = getTempDir();
+  const summaryContents = [];
+
+  for (const filename of filenames) {
+    // Prevent path traversal
+    if (filename.includes("/") || filename.includes("\\")) {
+      return res.status(400).json({ error: `Invalid filename: ${filename}` });
+    }
+
+    const filePath = join(tempDir, filename);
+    const resolvedPath = resolve(filePath);
+    const resolvedTempDir = resolve(tempDir);
+
+    if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+      return res.status(400).json({ error: `Invalid filename: ${filename}` });
+    }
+
+    if (!existsSync(filePath)) {
+      return res.status(404).json({ error: `File not found: ${filename}` });
+    }
+
+    const content = readFileSync(filePath, "utf-8");
+    summaryContents.push(content);
+  }
+
+  // Set up SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  try {
+    const onChunk = (chunk) => {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    };
+
+    const result = await analyzeMultipleSummaries(
+      summaryContents,
+      promptType || "generic",
+      customPrompt || null,
+      llmConfig,
+      onChunk
+    );
+
+    res.write(`data: ${JSON.stringify({ complete: true, response: result })}\n\n`);
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Multi-Summary Analysis - Save analysis result as new file
+app.post("/api/summaries/analyze/save", (req, res) => {
+  const { content, title } = req.body;
+
+  if (!content) {
+    return res.status(400).json({ error: "content is required" });
+  }
+
+  const tempDir = getTempDir();
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const baseTitle = title || "Cross-Reference Analysis";
+  const filename = `${sanitizeFilename(baseTitle)} (${timestamp}).md`;
+  const filePath = join(tempDir, filename);
+
+  // Format the content as markdown
+  const markdownContent = `# ${baseTitle}
+
+*Generated: ${new Date().toLocaleString()}*
+
+---
+
+${content}
+`;
+
+  writeFileSync(filePath, markdownContent);
+
+  res.json({
+    success: true,
+    filename,
+    title: baseTitle,
+  });
+});
+
+// Get available analysis prompt types
+app.get("/api/summaries/analyze/prompts", (_req, res) => {
+  res.json({
+    prompts: Object.keys(ANALYSIS_PROMPTS).map((key) => ({
+      id: key,
+      name: key.charAt(0).toUpperCase() + key.slice(1),
+      description: ANALYSIS_PROMPTS[key].split("\n")[0],
+    })),
   });
 });
 
