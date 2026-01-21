@@ -356,6 +356,24 @@ https://youtube.com/watch?v=..."
       </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal-overlay hidden">
+      <div class="modal delete-modal">
+        <div class="delete-modal-icon">
+          <span class="material-symbols-outlined">delete_forever</span>
+        </div>
+        <h3 id="delete-modal-title">Delete Extraction?</h3>
+        <p id="delete-modal-message">This action cannot be undone.</p>
+        <div class="delete-modal-actions">
+          <button class="modal-btn secondary" id="delete-cancel">Cancel</button>
+          <button class="modal-btn danger" id="delete-confirm">
+            <span class="material-symbols-outlined">delete</span>
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Error Toast -->
     <div id="error-toast" class="toast hidden">
       <span class="material-symbols-outlined">error</span>

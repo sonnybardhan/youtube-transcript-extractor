@@ -9,9 +9,49 @@ import { showResultsView, showInputView, updateSignalPane, updateInfoPane } from
 
 // Selection state
 let selectedItems = new Set();
+let lastClickedFilename = null; // Track last clicked checkbox for Shift+Click
 
 // Full history data for filtering
 let allFiles = [];
+
+// Delete confirmation promise resolver
+let deleteConfirmResolver = null;
+
+/**
+ * Show custom delete confirmation modal
+ * @param {string} title - Modal title
+ * @param {string} message - Modal message
+ * @returns {Promise<boolean>} - Resolves true if confirmed, false if cancelled
+ */
+function showDeleteConfirm(title, message) {
+  const elements = getElements();
+
+  elements.deleteModalTitle.textContent = title;
+  elements.deleteModalMessage.textContent = message;
+  elements.deleteModal.classList.remove('hidden');
+
+  return new Promise((resolve) => {
+    deleteConfirmResolver = resolve;
+  });
+}
+
+function handleDeleteConfirm() {
+  const elements = getElements();
+  elements.deleteModal.classList.add('hidden');
+  if (deleteConfirmResolver) {
+    deleteConfirmResolver(true);
+    deleteConfirmResolver = null;
+  }
+}
+
+function handleDeleteCancel() {
+  const elements = getElements();
+  elements.deleteModal.classList.add('hidden');
+  if (deleteConfirmResolver) {
+    deleteConfirmResolver(false);
+    deleteConfirmResolver = null;
+  }
+}
 
 export function initHistorySelection() {
   const elements = getElements();
@@ -23,6 +63,13 @@ export function initHistorySelection() {
 
   // Bulk delete button handler
   elements.bulkDeleteBtn.addEventListener('click', deleteSelectedItems);
+
+  // Delete modal handlers
+  elements.deleteConfirmBtn.addEventListener('click', handleDeleteConfirm);
+  elements.deleteCancelBtn.addEventListener('click', handleDeleteCancel);
+  elements.deleteModal.addEventListener('click', (e) => {
+    if (e.target === elements.deleteModal) handleDeleteCancel();
+  });
 
   // Search input handler
   elements.historySearchInput.addEventListener('input', (e) => {
@@ -85,6 +132,63 @@ function toggleItemSelection(filename, checked) {
   updateBulkDeleteUI();
 }
 
+/**
+ * Handle Shift+Click range selection
+ * Selects/deselects all items between last clicked and current
+ * @param {string} currentFilename - Filename of the currently clicked item
+ * @param {HTMLElement[]} items - Array of history item elements
+ */
+function handleRangeSelection(currentFilename, items) {
+  if (!lastClickedFilename || !items.length) {
+    lastClickedFilename = currentFilename;
+    return;
+  }
+
+  // Find indices of anchor and current items
+  let anchorIndex = -1;
+  let currentIndex = -1;
+
+  for (let i = 0; i < items.length; i++) {
+    const filename = items[i].dataset.filename;
+    if (filename === lastClickedFilename) anchorIndex = i;
+    if (filename === currentFilename) currentIndex = i;
+  }
+
+  if (anchorIndex === -1 || currentIndex === -1) {
+    lastClickedFilename = currentFilename;
+    return;
+  }
+
+  const start = Math.min(anchorIndex, currentIndex);
+  const end = Math.max(anchorIndex, currentIndex);
+
+  // Determine action based on the anchor item's state
+  const shouldSelect = selectedItems.has(lastClickedFilename);
+
+  // Select/deselect all items in range (inclusive of both ends)
+  for (let i = start; i <= end; i++) {
+    const item = items[i];
+    const filename = item.dataset.filename;
+    const checkbox = item.querySelector('input.history-checkbox');
+
+    if (shouldSelect) {
+      selectedItems.add(filename);
+      item.classList.add('selected');
+      if (checkbox) checkbox.checked = true;
+    } else {
+      selectedItems.delete(filename);
+      item.classList.remove('selected');
+      if (checkbox) checkbox.checked = false;
+    }
+  }
+
+  // Update anchor for next shift-click
+  lastClickedFilename = currentFilename;
+
+  updateSelectAllState();
+  updateBulkDeleteUI();
+}
+
 function updateSelectAllState() {
   const elements = getElements();
   const historyItems = elements.historyList.querySelectorAll('.history-item');
@@ -121,7 +225,11 @@ async function deleteSelectedItems() {
   const count = selectedItems.size;
   if (count === 0) return;
 
-  if (!confirm(`Delete ${count} selected extraction${count > 1 ? 's' : ''}?`)) return;
+  const confirmed = await showDeleteConfirm(
+    `Delete ${count} Extraction${count > 1 ? 's' : ''}?`,
+    `This will permanently delete ${count} selected item${count > 1 ? 's' : ''}. This action cannot be undone.`
+  );
+  if (!confirmed) return;
 
   const elements = getElements();
   const currentFilename = getState('currentFilename');
@@ -181,6 +289,7 @@ async function deleteSelectedItems() {
 function clearSelection() {
   const elements = getElements();
   selectedItems.clear();
+  lastClickedFilename = null;
   elements.selectAllHistory.checked = false;
   elements.selectAllHistory.indeterminate = false;
   updateBulkDeleteUI();
@@ -233,12 +342,61 @@ export function renderHistory(files, isFiltered = false) {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.className = 'history-checkbox';
-    checkbox.title = 'Select for bulk delete';
+    checkbox.title = 'Select for bulk delete (Shift+Click to select range)';
+    // Track if shift was held during click
+    let wasShiftClick = false;
+
     checkbox.addEventListener('click', (e) => {
       e.stopPropagation();
+      wasShiftClick = e.shiftKey;
     });
+
     checkbox.addEventListener('change', (e) => {
-      toggleItemSelection(file.filename, e.target.checked);
+      if (wasShiftClick && lastClickedFilename && lastClickedFilename !== file.filename) {
+        // Shift+Click with different anchor: select/deselect range
+        const items = Array.from(elements.historyList.querySelectorAll('.history-item'));
+        const shouldSelect = selectedItems.has(lastClickedFilename);
+
+        // Find indices
+        let anchorIdx = -1, currentIdx = -1;
+        items.forEach((itm, i) => {
+          if (itm.dataset.filename === lastClickedFilename) anchorIdx = i;
+          if (itm.dataset.filename === file.filename) currentIdx = i;
+        });
+
+        if (anchorIdx !== -1 && currentIdx !== -1) {
+          const start = Math.min(anchorIdx, currentIdx);
+          const end = Math.max(anchorIdx, currentIdx);
+
+          for (let i = start; i <= end; i++) {
+            const itm = items[i];
+            const fname = itm.dataset.filename;
+            const cb = itm.querySelector('input.history-checkbox');
+
+            if (shouldSelect) {
+              selectedItems.add(fname);
+              itm.classList.add('selected');
+              if (cb) cb.checked = true;
+            } else {
+              selectedItems.delete(fname);
+              itm.classList.remove('selected');
+              if (cb) cb.checked = false;
+            }
+          }
+
+          updateSelectAllState();
+          updateBulkDeleteUI();
+        }
+
+        // Update anchor
+        lastClickedFilename = file.filename;
+      } else {
+        // Normal click: just toggle this item
+        toggleItemSelection(file.filename, e.target.checked);
+        lastClickedFilename = file.filename;
+      }
+
+      wasShiftClick = false;
     });
 
     const content = document.createElement('div');
@@ -437,7 +595,13 @@ export async function loadHistoryItem(filename) {
 }
 
 export async function deleteHistoryItem(filename) {
-  if (!confirm('Delete this extraction?')) return;
+  // Extract title from filename for better UX
+  const title = filename.replace(/\.md$/, '').slice(0, 50);
+  const confirmed = await showDeleteConfirm(
+    'Delete Extraction?',
+    `"${title}${filename.length > 53 ? '...' : ''}" will be permanently deleted.`
+  );
+  if (!confirmed) return;
 
   const elements = getElements();
   const currentFilename = getState('currentFilename');

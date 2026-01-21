@@ -64,7 +64,14 @@ export function initElements() {
 
     // Toast
     errorToast: document.getElementById('error-toast'),
-    errorMessage: document.getElementById('error-message')
+    errorMessage: document.getElementById('error-message'),
+
+    // Delete Modal
+    deleteModal: document.getElementById('delete-modal'),
+    deleteModalTitle: document.getElementById('delete-modal-title'),
+    deleteModalMessage: document.getElementById('delete-modal-message'),
+    deleteConfirmBtn: document.getElementById('delete-confirm'),
+    deleteCancelBtn: document.getElementById('delete-cancel')
   };
 
   return elements;

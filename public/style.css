@@ -351,10 +351,26 @@ body {
   color: var(--text-dim);
 }
 
-/* Processing state for history items */
+/* Processing state for history items with shimmer effect */
 .history-item.processing {
-  background: rgba(18, 108, 135, 0.1);
+  background: linear-gradient(
+    90deg,
+    rgba(18, 108, 135, 0.08) 0%,
+    rgba(18, 108, 135, 0.15) 50%,
+    rgba(18, 108, 135, 0.08) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
   border-left: 2px solid var(--primary);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .history-item.processing .history-item-meta {
@@ -1879,6 +1895,62 @@ body {
 
 .modal-btn .material-symbols-outlined {
   font-size: 18px;
+}
+
+/* Delete Confirmation Modal */
+.delete-modal {
+  max-width: 400px;
+  padding: 32px;
+  text-align: center;
+}
+
+.delete-modal-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-modal-icon .material-symbols-outlined {
+  font-size: 32px;
+  color: #ef4444;
+}
+
+.delete-modal h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.delete-modal p {
+  margin: 0 0 24px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.delete-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.delete-modal-actions .modal-btn {
+  min-width: 100px;
+}
+
+.modal-btn.danger {
+  background: #ef4444;
+  border: none;
+  color: #fff;
+}
+
+.modal-btn.danger:hover {
+  background: #dc2626;
 }
 
 /* ========================================
