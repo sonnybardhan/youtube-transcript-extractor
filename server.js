@@ -48,7 +48,7 @@ if (existsSync(envPath)) {
 }
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(join(__dirname, "public")));
+app.use(express.static(join(__dirname, "client", "dist")));
 
 // Helper to get API key for a given provider
 function getApiKeyForProvider(provider) {
@@ -1387,6 +1387,11 @@ app.use((err, _req, res, _next) => {
 // 404 handler for API routes - ensures 404s return JSON
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
+});
+
+// SPA fallback - serve index.html for all non-API routes (client-side routing)
+app.get('*', (_req, res) => {
+  res.sendFile(join(__dirname, 'client', 'dist', 'index.html'));
 });
 
 app.listen(PORT, () => {
