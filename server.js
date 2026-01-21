@@ -18,10 +18,17 @@ import {
   getTempDir,
   getPromptsDir,
   DEFAULT_PROMPT,
-  getPromptForCompression,
   sanitizeFilename,
   streamWithLLM,
   convertToSubheadings,
+  streamAnnotationResponse,
+  streamMetadataAnalysis,
+  applyMetadataChanges,
+  buildMetadataIndex,
+  getMetadataIndex,
+  findRelatedVideos,
+  analyzeMultipleSummaries,
+  ANALYSIS_PROMPTS,
 } from "./lib/extractor.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -41,7 +48,7 @@ if (existsSync(envPath)) {
 }
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(join(__dirname, "public")));
+app.use(express.static(join(__dirname, "client", "dist")));
 
 // Helper to get API key for a given provider
 function getApiKeyForProvider(provider) {
@@ -592,7 +599,7 @@ app.post("/api/reprocess", async (req, res) => {
   }
 });
 
-// List all extractions in temp/
+// List all extractions in temp/ (excluding analysis files)
 app.get("/api/history", (_req, res) => {
   const tempDir = getTempDir();
 
@@ -601,7 +608,7 @@ app.get("/api/history", (_req, res) => {
   }
 
   const files = readdirSync(tempDir)
-    .filter((f) => f.endsWith(".md"))
+    .filter((f) => f.endsWith(".md") && !f.startsWith("Analysis_"))
     .map((filename) => {
       const filePath = join(tempDir, filename);
       const stat = statSync(filePath);
@@ -647,8 +654,8 @@ app.get("/api/history/:filename", (req, res) => {
   if (existsSync(signalPath)) {
     try {
       signal = JSON.parse(readFileSync(signalPath, "utf-8"));
-    } catch {
-      // Ignore JSON parse errors
+    } catch (err) {
+      console.error(`Failed to parse signal file for ${filename}:`, err.message);
     }
   }
 
@@ -686,7 +693,770 @@ app.delete("/api/history/:filename", (req, res) => {
     unlinkSync(signalPath);
   }
 
+  // Also delete associated annotations file if it exists
+  const annotationsPath = filePath.replace('.md', '.annotations.json');
+  if (existsSync(annotationsPath)) {
+    unlinkSync(annotationsPath);
+  }
+
   res.json({ success: true });
+});
+
+// Get annotations for a file
+app.get("/api/history/:filename/annotations", (req, res) => {
+  const tempDir = getTempDir();
+  const filename = req.params.filename;
+
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  const annotationsPath = join(tempDir, filename.replace('.md', '.annotations.json'));
+
+  const resolvedPath = resolve(annotationsPath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  if (!existsSync(annotationsPath)) {
+    return res.json([]);
+  }
+
+  try {
+    const annotations = JSON.parse(readFileSync(annotationsPath, "utf-8"));
+    res.json(annotations);
+  } catch (err) {
+    console.error(`Failed to parse annotations for ${filename}:`, err.message);
+    res.json([]);
+  }
+});
+
+// Save annotation for a file
+app.post("/api/history/:filename/annotations", (req, res) => {
+  const tempDir = getTempDir();
+  const filename = req.params.filename;
+  const annotation = req.body;
+
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  if (!annotation || !annotation.id || !annotation.selectedText) {
+    return res.status(400).json({ error: "Invalid annotation data" });
+  }
+
+  const annotationsPath = join(tempDir, filename.replace('.md', '.annotations.json'));
+
+  const resolvedPath = resolve(annotationsPath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  // Load existing annotations or start with empty array
+  let annotations = [];
+  if (existsSync(annotationsPath)) {
+    try {
+      annotations = JSON.parse(readFileSync(annotationsPath, "utf-8"));
+    } catch (err) {
+      console.error(`Failed to parse existing annotations for ${filename}:`, err.message);
+      annotations = [];
+    }
+  }
+
+  // Add new annotation
+  annotations.push(annotation);
+
+  writeFileSync(annotationsPath, JSON.stringify(annotations, null, 2));
+  res.json({ success: true, annotation });
+});
+
+// Delete a specific annotation
+app.delete("/api/history/:filename/annotations/:annotationId", (req, res) => {
+  const tempDir = getTempDir();
+  const { filename, annotationId } = req.params;
+
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  const annotationsPath = join(tempDir, filename.replace('.md', '.annotations.json'));
+
+  const resolvedPath = resolve(annotationsPath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  if (!existsSync(annotationsPath)) {
+    return res.status(404).json({ error: "Annotations file not found" });
+  }
+
+  try {
+    let annotations = JSON.parse(readFileSync(annotationsPath, "utf-8"));
+    const originalLength = annotations.length;
+    annotations = annotations.filter(a => a.id !== annotationId);
+
+    if (annotations.length === originalLength) {
+      return res.status(404).json({ error: "Annotation not found" });
+    }
+
+    if (annotations.length === 0) {
+      // Remove the file if no annotations left
+      unlinkSync(annotationsPath);
+    } else {
+      writeFileSync(annotationsPath, JSON.stringify(annotations, null, 2));
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(`Failed to delete annotation ${annotationId} from ${filename}:`, err.message);
+    res.status(500).json({ error: "Failed to delete annotation" });
+  }
+});
+
+// Stream LLM response for annotation questions
+app.post("/api/annotations/ask/stream", async (req, res) => {
+  const { selectedText, section, surroundingText, question, category, concepts, llm } = req.body;
+
+  if (!selectedText) {
+    return res.status(400).json({ error: "selectedText is required" });
+  }
+
+  // Build LLM config
+  let llmConfig = null;
+  if (llm?.provider && llm?.model) {
+    const apiKey = getApiKeyForProvider(llm.provider);
+
+    if (apiKey) {
+      llmConfig = {
+        provider: llm.provider,
+        model: llm.model,
+        apiKey,
+      };
+    }
+  }
+
+  if (!llmConfig) {
+    return res.status(400).json({ error: "Valid LLM configuration required" });
+  }
+
+  // Set up SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  // Build the prompt with concepts for better context
+  const conceptsList = concepts?.length ? concepts.join(', ') : null;
+  const expertiseArea = category || 'this topic';
+
+  const prompt = `You are an expert in ${expertiseArea}, helping clarify content from a video summary.
+${conceptsList ? `\n**Key concepts from this video:** ${conceptsList}` : ''}
+
+**Selected text:** "${selectedText}"
+**Section:** ${section || 'General'}
+
+**Surrounding context:**
+${surroundingText || 'No additional context.'}
+
+**Question:** ${question || 'Explain this in more detail.'}
+
+Provide a clear, insightful explanation in 200-300 words. Draw on your expertise in ${expertiseArea}${conceptsList ? ` and the key concepts (${conceptsList})` : ''} to give practical context that helps the reader deeply understand this concept.`;
+
+  try {
+    const onChunk = (chunk) => {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    };
+
+    const result = await streamAnnotationResponse(prompt, llmConfig, onChunk);
+
+    res.write(`data: ${JSON.stringify({ complete: true, response: result })}\n\n`);
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Metadata Streamliner - Analyze signal files
+app.post("/api/metadata/analyze", async (req, res) => {
+  const { llm } = req.body;
+
+  // Build LLM config
+  let llmConfig = null;
+  if (llm?.provider && llm?.model) {
+    const apiKey = getApiKeyForProvider(llm.provider);
+
+    if (apiKey) {
+      llmConfig = {
+        provider: llm.provider,
+        model: llm.model,
+        apiKey,
+      };
+    }
+  }
+
+  if (!llmConfig) {
+    return res.status(400).json({ error: "Valid LLM configuration required" });
+  }
+
+  // Get files filter (convert .md to .signal.json)
+  const filterFiles = llm?.files?.map((f) => f.replace(/\.md$/, ".signal.json")) || null;
+
+  // Set up SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  try {
+    const onProgress = (progress) => {
+      // Preserve the original type from the progress event
+      res.write(`data: ${JSON.stringify(progress)}\n\n`);
+    };
+
+    const result = await streamMetadataAnalysis(llmConfig, onProgress, filterFiles);
+
+    if (result.error) {
+      res.write(`data: ${JSON.stringify({ type: "error", error: result.error })}\n\n`);
+    } else {
+      res.write(`data: ${JSON.stringify({ type: "complete", proposedChanges: result.proposedChanges })}\n\n`);
+    }
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: "error", error: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Metadata Streamliner - Apply proposed changes
+app.post("/api/metadata/apply", (req, res) => {
+  const { proposedChanges } = req.body;
+
+  if (!proposedChanges) {
+    return res.status(400).json({ error: "proposedChanges is required" });
+  }
+
+  try {
+    const result = applyMetadataChanges(proposedChanges);
+    res.json({
+      success: true,
+      updatedFiles: result.updatedFiles.length,
+      indexFile: result.indexFile,
+      files: result.updatedFiles,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Streaming version of metadata apply with progress
+app.post("/api/metadata/apply/stream", (req, res) => {
+  const { proposedChanges } = req.body;
+
+  if (!proposedChanges) {
+    return res.status(400).json({ error: "proposedChanges is required" });
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  try {
+    const { concepts, entities, tags, categories } = proposedChanges;
+
+    // Build lookup maps: alias -> canonical
+    const conceptMap = {};
+    concepts.forEach((c) => {
+      c.aliases.forEach((alias) => {
+        conceptMap[alias] = c.canonical;
+      });
+    });
+
+    const entityMap = {};
+    entities.forEach((e) => {
+      e.aliases.forEach((alias) => {
+        entityMap[alias] = e.canonical;
+      });
+    });
+
+    const tagMap = {};
+    tags.forEach((t) => {
+      t.aliases.forEach((alias) => {
+        tagMap[alias] = t.canonical;
+      });
+    });
+
+    const categoryMap = {};
+    categories.forEach((c) => {
+      c.aliases.forEach((alias) => {
+        categoryMap[alias] = c.canonical;
+      });
+    });
+
+    // Get affected files
+    const affectedFiles = new Set();
+    [...concepts, ...entities, ...tags, ...categories].forEach((change) => {
+      change.files?.forEach((file) => affectedFiles.add(file));
+    });
+
+    const filesToProcess = Array.from(affectedFiles);
+    const total = filesToProcess.length;
+    const updatedFiles = [];
+
+    // Process files with progress
+    filesToProcess.forEach((filename, index) => {
+      // Convert .md filename to .signal.json
+      const signalFilename = filename.replace(/\.md$/, ".signal.json");
+      const filePath = join(getTempDir(), signalFilename);
+
+      // Send progress
+      res.write(`data: ${JSON.stringify({
+        type: "progress",
+        current: index + 1,
+        total,
+        file: filename,
+      })}\n\n`);
+
+      try {
+        if (!existsSync(filePath)) return;
+
+        const content = JSON.parse(readFileSync(filePath, "utf-8"));
+        let changed = false;
+
+        // Normalize concepts
+        if (content.concepts) {
+          const newConcepts = [...new Set(
+            content.concepts.map((c) => conceptMap[c] || c)
+          )];
+          if (JSON.stringify(newConcepts) !== JSON.stringify(content.concepts)) {
+            content.concepts = newConcepts;
+            changed = true;
+          }
+        }
+
+        // Normalize entities
+        if (content.entities) {
+          const newEntities = [...new Set(
+            content.entities.map((e) => entityMap[e] || e)
+          )];
+          if (JSON.stringify(newEntities) !== JSON.stringify(content.entities)) {
+            content.entities = newEntities;
+            changed = true;
+          }
+        }
+
+        // Normalize tags
+        if (content.suggestedTags) {
+          const newTags = [...new Set(
+            content.suggestedTags.map((t) => tagMap[t] || t)
+          )];
+          if (JSON.stringify(newTags) !== JSON.stringify(content.suggestedTags)) {
+            content.suggestedTags = newTags;
+            changed = true;
+          }
+        }
+
+        // Normalize category
+        if (content.category && categoryMap[content.category]) {
+          const newCategory = categoryMap[content.category];
+          if (newCategory !== content.category) {
+            content.category = newCategory;
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          writeFileSync(filePath, JSON.stringify(content, null, 2));
+          updatedFiles.push(filename);
+        }
+      } catch (err) {
+        console.error(`Error updating ${filename}:`, err.message);
+      }
+    });
+
+    // Build metadata index
+    const indexPath = join(getTempDir(), "metadata-index.json");
+    const index = {
+      concepts: [...new Set(concepts.map((c) => c.canonical))],
+      entities: [...new Set(entities.map((e) => e.canonical))],
+      tags: [...new Set(tags.map((t) => t.canonical))],
+      categories: [...new Set(categories.map((c) => c.canonical))],
+      updatedAt: new Date().toISOString(),
+    };
+    writeFileSync(indexPath, JSON.stringify(index, null, 2));
+
+    // Send completion
+    res.write(`data: ${JSON.stringify({
+      type: "complete",
+      result: {
+        updatedFiles: updatedFiles.length,
+        indexFile: "metadata-index.json",
+        files: updatedFiles,
+      },
+    })}\n\n`);
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: "error", error: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Get signal file count for metadata streamliner
+app.get("/api/metadata/stats", (_req, res) => {
+  const tempDir = getTempDir();
+
+  if (!existsSync(tempDir)) {
+    return res.json({ signalFileCount: 0 });
+  }
+
+  const signalFiles = readdirSync(tempDir).filter((f) => f.endsWith(".signal.json"));
+  res.json({ signalFileCount: signalFiles.length });
+});
+
+// Get metadata index (for cross-referencing feature)
+app.get("/api/metadata/index", (_req, res) => {
+  try {
+    const index = getMetadataIndex();
+    if (!index) {
+      return res.json({ error: "Index not found. Run rebuild first.", index: null });
+    }
+    res.json({ index });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rebuild metadata index from signal files
+app.post("/api/metadata/index/rebuild", (_req, res) => {
+  try {
+    const index = buildMetadataIndex();
+    res.json({ success: true, index });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get related videos for a specific file
+app.get("/api/metadata/related/:filename", (req, res) => {
+  const { filename } = req.params;
+  const limit = parseInt(req.query.limit) || 5;
+
+  // Prevent path traversal
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  try {
+    const related = findRelatedVideos(filename, null, limit);
+    res.json({ related });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get metadata preview for streamliner - shows all unique terms
+app.get("/api/metadata/preview", (req, res) => {
+  const tempDir = getTempDir();
+
+  if (!existsSync(tempDir)) {
+    return res.json({ concepts: [], entities: [], tags: [], categories: [], fileCount: 0 });
+  }
+
+  // Parse optional files filter from query
+  let filterFiles = null;
+  if (req.query.files) {
+    try {
+      filterFiles = JSON.parse(req.query.files);
+    } catch (err) {
+      console.error('Failed to parse files query parameter:', err.message);
+    }
+  }
+
+  let signalFiles = readdirSync(tempDir).filter((f) => f.endsWith(".signal.json"));
+
+  // Filter to only selected files if filter provided
+  if (filterFiles && filterFiles.length > 0) {
+    const filterSet = new Set(filterFiles.map((f) => f.replace(/\.md$/, ".signal.json")));
+    signalFiles = signalFiles.filter((f) => filterSet.has(f));
+  }
+
+  const allConcepts = new Set();
+  const allEntities = new Set();
+  const allTags = new Set();
+  const allCategories = new Set();
+
+  signalFiles.forEach((filename) => {
+    const filePath = join(tempDir, filename);
+    try {
+      const content = JSON.parse(readFileSync(filePath, "utf-8"));
+      (content.concepts || []).forEach((c) => allConcepts.add(c));
+      (content.entities || []).forEach((e) => allEntities.add(e));
+      (content.suggestedTags || []).forEach((t) => allTags.add(t));
+      if (content.category) allCategories.add(content.category);
+    } catch (err) {
+      console.error(`Failed to parse metadata file ${filename}:`, err.message);
+    }
+  });
+
+  res.json({
+    concepts: [...allConcepts].sort(),
+    entities: [...allEntities].sort(),
+    tags: [...allTags].sort(),
+    categories: [...allCategories].sort(),
+    fileCount: signalFiles.length,
+  });
+});
+
+// Multi-Summary Analysis - Stream analysis response
+app.post("/api/summaries/analyze/stream", async (req, res) => {
+  const { filenames, promptType, customPrompt, llm } = req.body;
+
+  if (!filenames || !Array.isArray(filenames) || filenames.length < 2) {
+    return res.status(400).json({ error: "At least 2 filenames are required" });
+  }
+
+  // Build LLM config
+  let llmConfig = null;
+  if (llm?.provider && llm?.model) {
+    const apiKey = getApiKeyForProvider(llm.provider);
+
+    if (apiKey) {
+      llmConfig = {
+        provider: llm.provider,
+        model: llm.model,
+        apiKey,
+      };
+    }
+  }
+
+  if (!llmConfig) {
+    return res.status(400).json({ error: "Valid LLM configuration required" });
+  }
+
+  // Load the content of each file
+  const tempDir = getTempDir();
+  const summaryContents = [];
+
+  for (const filename of filenames) {
+    // Prevent path traversal
+    if (filename.includes("/") || filename.includes("\\")) {
+      return res.status(400).json({ error: `Invalid filename: ${filename}` });
+    }
+
+    const filePath = join(tempDir, filename);
+    const resolvedPath = resolve(filePath);
+    const resolvedTempDir = resolve(tempDir);
+
+    if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+      return res.status(400).json({ error: `Invalid filename: ${filename}` });
+    }
+
+    if (!existsSync(filePath)) {
+      return res.status(404).json({ error: `File not found: ${filename}` });
+    }
+
+    const content = readFileSync(filePath, "utf-8");
+    summaryContents.push(content);
+  }
+
+  // Set up SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  try {
+    const onChunk = (chunk) => {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    };
+
+    const result = await analyzeMultipleSummaries(
+      summaryContents,
+      promptType || "generic",
+      customPrompt || null,
+      llmConfig,
+      onChunk
+    );
+
+    res.write(`data: ${JSON.stringify({ complete: true, response: result })}\n\n`);
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+// Multi-Summary Analysis - Save analysis result as new file
+app.post("/api/summaries/analyze/save", (req, res) => {
+  const { content, title, sourceFilenames } = req.body;
+
+  if (!content) {
+    return res.status(400).json({ error: "content is required" });
+  }
+
+  const tempDir = getTempDir();
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const baseTitle = title || "Cross-Reference Analysis";
+  const filename = `Analysis_${sanitizeFilename(baseTitle)} (${timestamp}).md`;
+  const filePath = join(tempDir, filename);
+
+  // Format the content as markdown
+  const markdownContent = `# ${baseTitle}
+
+*Generated: ${new Date().toLocaleString()}*
+
+---
+
+${content}
+`;
+
+  writeFileSync(filePath, markdownContent);
+
+  // Save analysis metadata with source files
+  const analysisMetaPath = filePath.replace('.md', '.analysis.json');
+  const analysisMeta = {
+    title: baseTitle,
+    sourceFiles: sourceFilenames || [],
+    createdAt: new Date().toISOString(),
+  };
+  writeFileSync(analysisMetaPath, JSON.stringify(analysisMeta, null, 2));
+
+  res.json({
+    success: true,
+    filename,
+    title: baseTitle,
+  });
+});
+
+// List all saved analyses (files with .analysis.json metadata)
+app.get("/api/analyses", (_req, res) => {
+  const tempDir = getTempDir();
+
+  if (!existsSync(tempDir)) {
+    return res.json([]);
+  }
+
+  const analysisFiles = readdirSync(tempDir)
+    .filter((f) => f.endsWith(".analysis.json"))
+    .map((metaFilename) => {
+      const metaPath = join(tempDir, metaFilename);
+      const mdFilename = metaFilename.replace('.analysis.json', '.md');
+      const mdPath = join(tempDir, mdFilename);
+
+      try {
+        const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+        const stat = existsSync(mdPath) ? statSync(mdPath) : null;
+
+        return {
+          filename: mdFilename,
+          title: meta.title || mdFilename.replace('.md', ''),
+          date: meta.createdAt || (stat ? stat.mtime.toISOString() : new Date().toISOString()),
+          sourceFiles: meta.sourceFiles || [],
+        };
+      } catch (err) {
+        console.error(`Failed to parse analysis metadata ${metaFilename}:`, err.message);
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  res.json(analysisFiles);
+});
+
+// Get a specific analysis with its metadata
+app.get("/api/analyses/:filename", (req, res) => {
+  const tempDir = getTempDir();
+  const filename = req.params.filename;
+
+  // Prevent path traversal
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  const filePath = join(tempDir, filename);
+  const metaPath = filePath.replace('.md', '.analysis.json');
+
+  // Additional check: ensure resolved path is within tempDir
+  const resolvedPath = resolve(filePath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  if (!existsSync(filePath)) {
+    return res.status(404).json({ error: "Analysis not found" });
+  }
+
+  const content = readFileSync(filePath, "utf-8");
+
+  let meta = null;
+  if (existsSync(metaPath)) {
+    try {
+      meta = JSON.parse(readFileSync(metaPath, "utf-8"));
+    } catch (err) {
+      console.error(`Failed to parse analysis metadata for ${filename}:`, err.message);
+    }
+  }
+
+  res.json({
+    filename,
+    content,
+    title: meta?.title || filename.replace('.md', ''),
+    sourceFiles: meta?.sourceFiles || [],
+    createdAt: meta?.createdAt,
+  });
+});
+
+// Delete an analysis
+app.delete("/api/analyses/:filename", (req, res) => {
+  const tempDir = getTempDir();
+  const filename = req.params.filename;
+
+  // Prevent path traversal
+  if (filename.includes("/") || filename.includes("\\")) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  const filePath = join(tempDir, filename);
+  const metaPath = filePath.replace('.md', '.analysis.json');
+
+  // Additional check: ensure resolved path is within tempDir
+  const resolvedPath = resolve(filePath);
+  const resolvedTempDir = resolve(tempDir);
+  if (!resolvedPath.startsWith(resolvedTempDir + sep)) {
+    return res.status(400).json({ error: "Invalid filename" });
+  }
+
+  if (!existsSync(filePath)) {
+    return res.status(404).json({ error: "Analysis not found" });
+  }
+
+  unlinkSync(filePath);
+
+  // Also delete the metadata file if it exists
+  if (existsSync(metaPath)) {
+    unlinkSync(metaPath);
+  }
+
+  res.json({ success: true });
+});
+
+// Get available analysis prompt types
+app.get("/api/summaries/analyze/prompts", (_req, res) => {
+  res.json({
+    prompts: Object.keys(ANALYSIS_PROMPTS).map((key) => ({
+      id: key,
+      name: key.charAt(0).toUpperCase() + key.slice(1),
+      description: ANALYSIS_PROMPTS[key].split("\n")[0],
+    })),
+  });
 });
 
 // Get available API keys status (without exposing the keys)
@@ -743,6 +1513,11 @@ app.use((err, _req, res, _next) => {
 // 404 handler for API routes - ensures 404s return JSON
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
+});
+
+// SPA fallback - serve index.html for all non-API routes (client-side routing)
+app.get('*', (_req, res) => {
+  res.sendFile(join(__dirname, 'client', 'dist', 'index.html'));
 });
 
 app.listen(PORT, () => {
