@@ -9,8 +9,10 @@ export function ResultsView() {
   const { state } = useApp();
   const { handleRerunLLM, isStreaming } = useExtraction();
 
-  // Get streaming sections directly from global state
-  const streamingSections = state.streamingState?.lastSections || null;
+  // Only show streaming content if viewing the item being processed
+  const isViewingStreamingItem = state.currentFilename === state.processingFilename;
+  const shouldShowStreaming = isStreaming && isViewingStreamingItem;
+  const streamingSections = shouldShowStreaming ? (state.streamingState?.lastSections || null) : null;
 
   // Handle rerun
   const onRerun = useCallback(() => {
@@ -25,7 +27,7 @@ export function ResultsView() {
         <div className="results-main">
           <OutputPane
             streamingSections={streamingSections}
-            isStreaming={isStreaming}
+            isStreaming={shouldShowStreaming}
           />
         </div>
         <InfoPane />

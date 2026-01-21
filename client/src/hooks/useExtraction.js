@@ -89,7 +89,8 @@ export function useExtraction() {
         },
         {
           onStarted: async (data) => {
-            actions.setCurrentExtraction({ filename: data.filename });
+            // Clear old markdown and set new filename so streaming UI shows
+            actions.setCurrentExtraction({ filename: data.filename, markdown: '' });
             actions.setProcessingFilename(data.filename);
             await reloadHistory();
           },
@@ -184,8 +185,9 @@ export function useExtraction() {
         const result = successfulBasic[0];
 
         if (!result.data.hasTranscript) {
-          actions.showToast('No transcript available');
+          actions.showToast('No transcript available for this video');
           actions.setCurrentExtraction({ model: null });
+          actions.setView('input');
           return { basicInfo: successfulBasic.map((r) => r.data), noLLM: true };
         }
 
@@ -240,6 +242,8 @@ export function useExtraction() {
 
     actions.setView('results');
     actions.setSignalData(null);
+    // Clear markdown immediately so loading skeleton shows
+    actions.setCurrentExtraction({ markdown: '' });
 
     try {
       await processWithLLMStreaming(currentMetadata, {

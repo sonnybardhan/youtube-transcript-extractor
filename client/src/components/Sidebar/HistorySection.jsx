@@ -54,7 +54,7 @@ export function HistorySection() {
             }}
             onChange={handleSelectAllChange}
           />
-          <span className="history-label">HISTORY</span>
+          <span className="history-label">SUMMARIES</span>
         </div>
         <button
           className={`bulk-delete-btn ${selectedItems.size === 0 ? 'hidden' : ''}`}
@@ -70,7 +70,7 @@ export function HistorySection() {
         <span className="material-symbols-outlined">search</span>
         <input
           type="text"
-          placeholder="Search history..."
+          placeholder="Search summaries..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />

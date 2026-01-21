@@ -123,6 +123,11 @@ export function OutputPane({ streamingSections, isStreaming }) {
     );
   }, [streamingSections, isStreaming, title]);
 
+  // Determine render mode for key-based remounting
+  // This forces React to create a new container when switching between modes,
+  // avoiding conflicts between innerHTML and React's virtual DOM
+  const renderMode = isStreaming ? 'streaming' : (currentMarkdown ? 'markdown' : 'loading');
+
   // Process and render final markdown with DOMPurify sanitization
   useEffect(() => {
     if (currentMarkdown && !isStreaming && outputRef.current) {
@@ -171,16 +176,16 @@ export function OutputPane({ streamingSections, isStreaming }) {
   // Render streaming content if active
   if (isStreaming && streamingSections) {
     return (
-      <div id="output" className="output-container" ref={outputRef}>
+      <div key={renderMode} id="output" className="output-container">
         {renderStreamingContent()}
       </div>
     );
   }
 
-  // Render loading skeleton if no content
-  if (!currentMarkdown && !isStreaming) {
+  // Render loading skeleton if streaming is starting (no sections yet) or no content
+  if (isStreaming || !currentMarkdown) {
     return (
-      <div id="output" className="output-container" ref={outputRef}>
+      <div key={renderMode} id="output" className="output-container">
         <h1>{title}</h1>
         <LoadingSection title="TLDR" />
         <LoadingSection title="Key Insights" />
@@ -192,6 +197,6 @@ export function OutputPane({ streamingSections, isStreaming }) {
 
   // Container for final rendered markdown
   return (
-    <div id="output" className="output-container" ref={outputRef} />
+    <div key={renderMode} id="output" className="output-container" ref={outputRef} />
   );
 }
