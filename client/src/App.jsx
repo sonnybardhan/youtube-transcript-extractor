@@ -1,26 +1,36 @@
 import { AppProvider, useApp } from './context/AppContext';
+import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { MainContent } from './components/Main/MainContent';
 import { MetadataExplorerPage } from './components/MetadataExplorer';
+import { AnalysisPage } from './components/Analysis';
 import { PromptModal } from './components/Modals/PromptModal';
 import { DeleteModal } from './components/Modals/DeleteModal';
-import { AnalyzeModal } from './components/Modals/AnalyzeModal';
 import { StreamlinerModal } from './components/MetadataStreamliner';
 import { Toast } from './components/common/Toast';
 import './styles.css';
+
+function MainPage() {
+  return (
+    <div className="main-page">
+      <Sidebar />
+      <MainContent />
+    </div>
+  );
+}
 
 function AppContent() {
   const { state } = useApp();
   const { currentPage } = state;
 
-  if (currentPage === 'explorer') {
-    return <MetadataExplorerPage />;
-  }
-
   return (
-    <div className="app-container">
-      <Sidebar />
-      <MainContent />
+    <div className="app-layout">
+      <Header />
+      <div className="app-body">
+        {currentPage === 'main' && <MainPage />}
+        {currentPage === 'explorer' && <MetadataExplorerPage />}
+        {currentPage === 'analysis' && <AnalysisPage />}
+      </div>
     </div>
   );
 }
@@ -33,7 +43,6 @@ function App() {
       {/* Modals */}
       <PromptModal />
       <DeleteModal />
-      <AnalyzeModal />
       <StreamlinerModal />
 
       {/* Toast notifications */}

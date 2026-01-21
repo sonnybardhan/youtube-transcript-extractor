@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
-import { fetchConfig, fetchPrompt, fetchHistory } from '../utils/api';
+import { fetchConfig, fetchPrompt, fetchHistory, fetchSavedAnalyses } from '../utils/api';
 import { DEFAULT_PROVIDER, DEFAULT_MODEL, DEFAULT_COMPRESSION } from '../utils/config';
 
 // Initial state
@@ -62,7 +62,11 @@ const initialState = {
   pendingAnnotation: null, // { filename, selectedText, section, question, response, isStreaming, error }
 
   // Page navigation
-  currentPage: 'main', // 'main' | 'explorer'
+  currentPage: 'main', // 'main' | 'explorer' | 'analysis'
+
+  // Saved analyses for Analysis page
+  savedAnalyses: [],
+  currentAnalysis: null,
 
   // Metadata Explorer
   metadataIndex: null,
@@ -82,6 +86,7 @@ const initialState = {
   analyzeCustomPrompt: '',
   analyzeResponse: '',
   analyzeIsStreaming: false,
+  analyzeSourceFilenames: [], // Track which files are being analyzed (persists for draft)
 };
 
 // Action types
@@ -133,7 +138,11 @@ const ActionTypes = {
   SET_ANALYZE_CUSTOM_PROMPT: 'SET_ANALYZE_CUSTOM_PROMPT',
   SET_ANALYZE_RESPONSE: 'SET_ANALYZE_RESPONSE',
   SET_ANALYZE_IS_STREAMING: 'SET_ANALYZE_IS_STREAMING',
+  SET_ANALYZE_SOURCE_FILENAMES: 'SET_ANALYZE_SOURCE_FILENAMES',
   RESET_ANALYZE: 'RESET_ANALYZE',
+  // Saved analyses
+  SET_SAVED_ANALYSES: 'SET_SAVED_ANALYSES',
+  SET_CURRENT_ANALYSIS: 'SET_CURRENT_ANALYSIS',
 };
 
 // Reducer
@@ -325,6 +334,9 @@ function appReducer(state, action) {
     case ActionTypes.SET_ANALYZE_IS_STREAMING:
       return { ...state, analyzeIsStreaming: action.payload };
 
+    case ActionTypes.SET_ANALYZE_SOURCE_FILENAMES:
+      return { ...state, analyzeSourceFilenames: action.payload };
+
     case ActionTypes.RESET_ANALYZE:
       return {
         ...state,
@@ -333,7 +345,14 @@ function appReducer(state, action) {
         analyzeCustomPrompt: '',
         analyzeResponse: '',
         analyzeIsStreaming: false,
+        analyzeSourceFilenames: [],
       };
+
+    case ActionTypes.SET_SAVED_ANALYSES:
+      return { ...state, savedAnalyses: action.payload };
+
+    case ActionTypes.SET_CURRENT_ANALYSIS:
+      return { ...state, currentAnalysis: action.payload };
 
     default:
       return state;
@@ -507,8 +526,27 @@ export function AppProvider({ children }) {
     setAnalyzeIsStreaming: (isStreaming) =>
       dispatch({ type: ActionTypes.SET_ANALYZE_IS_STREAMING, payload: isStreaming }),
 
+    setAnalyzeSourceFilenames: (filenames) =>
+      dispatch({ type: ActionTypes.SET_ANALYZE_SOURCE_FILENAMES, payload: filenames }),
+
     resetAnalyze: () =>
       dispatch({ type: ActionTypes.RESET_ANALYZE }),
+
+    // Saved analyses actions
+    setSavedAnalyses: (analyses) =>
+      dispatch({ type: ActionTypes.SET_SAVED_ANALYSES, payload: analyses }),
+
+    setCurrentAnalysis: (analysis) =>
+      dispatch({ type: ActionTypes.SET_CURRENT_ANALYSIS, payload: analysis }),
+
+    loadSavedAnalyses: async () => {
+      try {
+        const analyses = await fetchSavedAnalyses();
+        dispatch({ type: ActionTypes.SET_SAVED_ANALYSES, payload: analyses });
+      } catch (err) {
+        console.error('Failed to load saved analyses:', err);
+      }
+    },
 
     // Abort controller management
     setAbortController: (controller) => {
