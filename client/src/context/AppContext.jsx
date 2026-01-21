@@ -61,12 +61,27 @@ const initialState = {
   // Pending annotation being streamed (persists across page changes)
   pendingAnnotation: null, // { filename, selectedText, section, question, response, isStreaming, error }
 
+  // Page navigation
+  currentPage: 'main', // 'main' | 'explorer'
+
+  // Metadata Explorer
+  metadataIndex: null,
+  explorerSelectedTerms: { concepts: [], entities: [], tags: [], categories: [] },
+  explorerFilterMode: 'AND', // 'AND' | 'OR'
+
   // Metadata Streamliner
   streamlinerModalOpen: false,
   streamlinerPhase: 'setup', // 'setup' | 'analyzing' | 'review' | 'applying' | 'complete'
   streamlinerProgress: null, // { type, processed, total, current, message, field, count }
   streamlinerProposedChanges: null,
   streamlinerResult: null, // { updatedFiles, indexFile }
+
+  // Multi-Summary Analysis
+  analyzeModalOpen: false,
+  analyzeSelectedPrompt: 'similarities',
+  analyzeCustomPrompt: '',
+  analyzeResponse: '',
+  analyzeIsStreaming: false,
 };
 
 // Action types
@@ -101,12 +116,24 @@ const ActionTypes = {
   CLEAR_PENDING_ANNOTATION: 'CLEAR_PENDING_ANNOTATION',
   CLEAR_CURRENT: 'CLEAR_CURRENT',
   UPDATE_STATE: 'UPDATE_STATE',
+  SET_CURRENT_PAGE: 'SET_CURRENT_PAGE',
+  SET_METADATA_INDEX: 'SET_METADATA_INDEX',
+  SET_EXPLORER_SELECTED_TERMS: 'SET_EXPLORER_SELECTED_TERMS',
+  SET_EXPLORER_FILTER_MODE: 'SET_EXPLORER_FILTER_MODE',
+  RESET_EXPLORER: 'RESET_EXPLORER',
   SET_STREAMLINER_MODAL: 'SET_STREAMLINER_MODAL',
   SET_STREAMLINER_PHASE: 'SET_STREAMLINER_PHASE',
   SET_STREAMLINER_PROGRESS: 'SET_STREAMLINER_PROGRESS',
   SET_STREAMLINER_PROPOSED_CHANGES: 'SET_STREAMLINER_PROPOSED_CHANGES',
   SET_STREAMLINER_RESULT: 'SET_STREAMLINER_RESULT',
   RESET_STREAMLINER: 'RESET_STREAMLINER',
+  // Multi-Summary Analysis
+  SET_ANALYZE_MODAL: 'SET_ANALYZE_MODAL',
+  SET_ANALYZE_SELECTED_PROMPT: 'SET_ANALYZE_SELECTED_PROMPT',
+  SET_ANALYZE_CUSTOM_PROMPT: 'SET_ANALYZE_CUSTOM_PROMPT',
+  SET_ANALYZE_RESPONSE: 'SET_ANALYZE_RESPONSE',
+  SET_ANALYZE_IS_STREAMING: 'SET_ANALYZE_IS_STREAMING',
+  RESET_ANALYZE: 'RESET_ANALYZE',
 };
 
 // Reducer
@@ -238,6 +265,25 @@ function appReducer(state, action) {
     case ActionTypes.UPDATE_STATE:
       return { ...state, ...action.payload };
 
+    case ActionTypes.SET_CURRENT_PAGE:
+      return { ...state, currentPage: action.payload };
+
+    case ActionTypes.SET_METADATA_INDEX:
+      return { ...state, metadataIndex: action.payload };
+
+    case ActionTypes.SET_EXPLORER_SELECTED_TERMS:
+      return { ...state, explorerSelectedTerms: action.payload };
+
+    case ActionTypes.SET_EXPLORER_FILTER_MODE:
+      return { ...state, explorerFilterMode: action.payload };
+
+    case ActionTypes.RESET_EXPLORER:
+      return {
+        ...state,
+        explorerSelectedTerms: { concepts: [], entities: [], tags: [], categories: [] },
+        explorerFilterMode: 'AND',
+      };
+
     case ActionTypes.SET_STREAMLINER_MODAL:
       return { ...state, streamlinerModalOpen: action.payload };
 
@@ -261,6 +307,32 @@ function appReducer(state, action) {
         streamlinerProgress: null,
         streamlinerProposedChanges: null,
         streamlinerResult: null,
+      };
+
+    // Multi-Summary Analysis
+    case ActionTypes.SET_ANALYZE_MODAL:
+      return { ...state, analyzeModalOpen: action.payload };
+
+    case ActionTypes.SET_ANALYZE_SELECTED_PROMPT:
+      return { ...state, analyzeSelectedPrompt: action.payload };
+
+    case ActionTypes.SET_ANALYZE_CUSTOM_PROMPT:
+      return { ...state, analyzeCustomPrompt: action.payload };
+
+    case ActionTypes.SET_ANALYZE_RESPONSE:
+      return { ...state, analyzeResponse: action.payload };
+
+    case ActionTypes.SET_ANALYZE_IS_STREAMING:
+      return { ...state, analyzeIsStreaming: action.payload };
+
+    case ActionTypes.RESET_ANALYZE:
+      return {
+        ...state,
+        analyzeModalOpen: false,
+        analyzeSelectedPrompt: 'similarities',
+        analyzeCustomPrompt: '',
+        analyzeResponse: '',
+        analyzeIsStreaming: false,
       };
 
     default:
@@ -383,6 +455,23 @@ export function AppProvider({ children }) {
     updateState: (updates) =>
       dispatch({ type: ActionTypes.UPDATE_STATE, payload: updates }),
 
+    // Page navigation
+    setCurrentPage: (page) =>
+      dispatch({ type: ActionTypes.SET_CURRENT_PAGE, payload: page }),
+
+    // Metadata Explorer actions
+    setMetadataIndex: (index) =>
+      dispatch({ type: ActionTypes.SET_METADATA_INDEX, payload: index }),
+
+    setExplorerSelectedTerms: (terms) =>
+      dispatch({ type: ActionTypes.SET_EXPLORER_SELECTED_TERMS, payload: terms }),
+
+    setExplorerFilterMode: (mode) =>
+      dispatch({ type: ActionTypes.SET_EXPLORER_FILTER_MODE, payload: mode }),
+
+    resetExplorer: () =>
+      dispatch({ type: ActionTypes.RESET_EXPLORER }),
+
     // Streamliner actions
     setStreamlinerModalOpen: (open) =>
       dispatch({ type: ActionTypes.SET_STREAMLINER_MODAL, payload: open }),
@@ -401,6 +490,25 @@ export function AppProvider({ children }) {
 
     resetStreamliner: () =>
       dispatch({ type: ActionTypes.RESET_STREAMLINER }),
+
+    // Multi-Summary Analysis actions
+    setAnalyzeModalOpen: (open) =>
+      dispatch({ type: ActionTypes.SET_ANALYZE_MODAL, payload: open }),
+
+    setAnalyzeSelectedPrompt: (prompt) =>
+      dispatch({ type: ActionTypes.SET_ANALYZE_SELECTED_PROMPT, payload: prompt }),
+
+    setAnalyzeCustomPrompt: (prompt) =>
+      dispatch({ type: ActionTypes.SET_ANALYZE_CUSTOM_PROMPT, payload: prompt }),
+
+    setAnalyzeResponse: (response) =>
+      dispatch({ type: ActionTypes.SET_ANALYZE_RESPONSE, payload: response }),
+
+    setAnalyzeIsStreaming: (isStreaming) =>
+      dispatch({ type: ActionTypes.SET_ANALYZE_IS_STREAMING, payload: isStreaming }),
+
+    resetAnalyze: () =>
+      dispatch({ type: ActionTypes.RESET_ANALYZE }),
 
     // Abort controller management
     setAbortController: (controller) => {
