@@ -42,6 +42,8 @@ const initialState = {
   promptModalOpen: false,
   deleteModalOpen: false,
   deleteModalData: null,
+  askQuestionModalOpen: false,
+  askQuestionModalData: null, // { selectionData, onSubmit }
 
   // Toast
   toast: null,
@@ -108,6 +110,7 @@ const ActionTypes = {
   SET_IS_STREAMING: 'SET_IS_STREAMING',
   SET_PROMPT_MODAL: 'SET_PROMPT_MODAL',
   SET_DELETE_MODAL: 'SET_DELETE_MODAL',
+  SET_ASK_QUESTION_MODAL: 'SET_ASK_QUESTION_MODAL',
   SET_TOAST: 'SET_TOAST',
   SET_THEME: 'SET_THEME',
   SET_INFO_PANE_COLLAPSED: 'SET_INFO_PANE_COLLAPSED',
@@ -216,6 +219,13 @@ function appReducer(state, action) {
         ...state,
         deleteModalOpen: action.payload.open,
         deleteModalData: action.payload.data ?? state.deleteModalData,
+      };
+
+    case ActionTypes.SET_ASK_QUESTION_MODAL:
+      return {
+        ...state,
+        askQuestionModalOpen: action.payload.open,
+        askQuestionModalData: action.payload.data ?? state.askQuestionModalData,
       };
 
     case ActionTypes.SET_TOAST:
@@ -419,6 +429,9 @@ export function AppProvider({ children }) {
 
     setDeleteModal: (open, data = null) =>
       dispatch({ type: ActionTypes.SET_DELETE_MODAL, payload: { open, data } }),
+
+    setAskQuestionModal: (open, data = null) =>
+      dispatch({ type: ActionTypes.SET_ASK_QUESTION_MODAL, payload: { open, data } }),
 
     showToast: (message, type = 'error') => {
       dispatch({ type: ActionTypes.SET_TOAST, payload: { message, type } });

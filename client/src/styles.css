@@ -2316,6 +2316,96 @@ html.light .header-action {
   background: #dc2626;
 }
 
+/* Ask Question Modal */
+.ask-question-modal {
+  max-width: 500px;
+  width: 90%;
+}
+
+.ask-question-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ask-question-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ask-question-selection label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.ask-question-selection label .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.ask-question-selection blockquote {
+  margin: 0;
+  padding: 12px 16px;
+  background: rgba(13, 126, 168, 0.1);
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+.ask-question-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ask-question-input label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.ask-question-input label .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.ask-question-input textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 12px;
+  background: var(--surface-main);
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  color: var(--text-main);
+  font-family: var(--font-main);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.15s ease;
+}
+
+.ask-question-input textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.ask-question-input textarea::placeholder {
+  color: var(--text-muted);
+}
+
 /* ========================================
    Toast
    ======================================== */
@@ -2441,6 +2531,8 @@ html.light .header-action {
 /* Selection Toolbar */
 .selection-toolbar {
   z-index: 100;
+  display: flex;
+  gap: 4px;
   background: var(--surface-dark);
   border: 1px solid var(--border-dark);
   border-radius: 8px;
@@ -2467,6 +2559,15 @@ html.light .header-action {
 
 .selection-toolbar-btn:hover {
   background: var(--primary-hover);
+}
+
+.selection-toolbar-btn.secondary {
+  background: var(--surface-light);
+  color: var(--text-main);
+}
+
+.selection-toolbar-btn.secondary:hover {
+  background: var(--border-dark);
 }
 
 .selection-toolbar-btn .material-symbols-outlined {

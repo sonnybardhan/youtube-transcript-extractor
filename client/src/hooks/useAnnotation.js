@@ -9,7 +9,7 @@ export function useAnnotation() {
   const { state, actions } = useApp();
   const { provider, model, currentFilename, signalData, pendingAnnotation } = state;
 
-  const startAnnotation = useCallback(async (selectionData) => {
+  const startAnnotation = useCallback(async (selectionData, customQuestion = null) => {
     if (!currentFilename) {
       actions.showToast('No file selected');
       return;
@@ -31,7 +31,7 @@ export function useAnnotation() {
     const { selectedText, section, surroundingText } = selectionData;
     const category = signalData?.category || null;
     const concepts = signalData?.concepts || [];
-    const question = 'Explain this in more detail.';
+    const question = customQuestion || 'Explain this in more detail.';
 
     // Set up the pending annotation
     const pending = {

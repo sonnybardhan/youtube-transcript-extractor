@@ -96,10 +96,20 @@ export function ResultsView() {
     handleRerunLLM();
   }, [handleRerunLLM]);
 
-  // Handle annotation request - stream directly to side pane
-  const handleAskLLM = useCallback((selectionData) => {
+  // Handle elaborate request - uses default question
+  const handleElaborate = useCallback((selectionData) => {
     startAnnotation(selectionData);
   }, [startAnnotation]);
+
+  // Handle custom question - opens modal
+  const handleAskCustom = useCallback((selectionData) => {
+    actions.setAskQuestionModal(true, {
+      selectionData,
+      onSubmit: (question) => {
+        startAnnotation(selectionData, question);
+      },
+    });
+  }, [actions, startAnnotation]);
 
   return (
     <div id="results-view" className="view">
@@ -110,7 +120,8 @@ export function ResultsView() {
           <OutputPane
             streamingSections={streamingSections}
             isStreaming={shouldShowStreaming}
-            onAskLLM={handleAskLLM}
+            onElaborate={handleElaborate}
+            onAskCustom={handleAskCustom}
           />
         </div>
         <InfoPane />

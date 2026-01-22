@@ -48,20 +48,30 @@ function InlineMarkdown({ text }) {
   return <span ref={ref} />;
 }
 
-export function OutputPane({ streamingSections, isStreaming, onAskLLM }) {
+export function OutputPane({ streamingSections, isStreaming, onElaborate, onAskCustom }) {
   const { state } = useApp();
   const { currentMarkdown, currentMetadata, currentModel, signalData } = state;
   const outputRef = useRef(null);
 
-  // Handle text selection for annotation
-  const handleSelectionAsk = useCallback((selectionData) => {
-    if (onAskLLM) {
-      onAskLLM({
-        ...selectionData,
-        category: signalData?.category || null,
-      });
+  // Enrich selection data with signal data context
+  const enrichSelectionData = useCallback((selectionData) => ({
+    ...selectionData,
+    category: signalData?.category || null,
+  }), [signalData]);
+
+  // Handle elaborate button - uses default question
+  const handleElaborate = useCallback((selectionData) => {
+    if (onElaborate) {
+      onElaborate(enrichSelectionData(selectionData));
     }
-  }, [onAskLLM, signalData]);
+  }, [onElaborate, enrichSelectionData]);
+
+  // Handle ask button - opens modal for custom question
+  const handleAskCustom = useCallback((selectionData) => {
+    if (onAskCustom) {
+      onAskCustom(enrichSelectionData(selectionData));
+    }
+  }, [onAskCustom, enrichSelectionData]);
 
   const title = currentMetadata?.title || 'Loading...';
 
@@ -210,7 +220,11 @@ export function OutputPane({ streamingSections, isStreaming, onAskLLM }) {
   return (
     <>
       <div key={renderMode} id="output" className="output-container" ref={outputRef} />
-      <SelectionToolbar containerRef={outputRef} onAskLLM={handleSelectionAsk} />
+      <SelectionToolbar
+        containerRef={outputRef}
+        onElaborate={handleElaborate}
+        onAskCustom={handleAskCustom}
+      />
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export function SelectionToolbar({ onAskLLM, containerRef }) {
+export function SelectionToolbar({ onElaborate, onAskCustom, containerRef }) {
   const [position, setPosition] = useState(null);
   const [selectionData, setSelectionData] = useState(null);
   const toolbarRef = useRef(null);
@@ -123,13 +123,23 @@ export function SelectionToolbar({ onAskLLM, containerRef }) {
     };
   }, [containerRef]);
 
+  const clearSelection = () => {
+    window.getSelection().removeAllRanges();
+    setPosition(null);
+    setSelectionData(null);
+  };
+
+  const handleElaborateClick = () => {
+    if (selectionData && onElaborate) {
+      onElaborate(selectionData);
+      clearSelection();
+    }
+  };
+
   const handleAskClick = () => {
-    if (selectionData && onAskLLM) {
-      onAskLLM(selectionData);
-      // Clear selection after clicking
-      window.getSelection().removeAllRanges();
-      setPosition(null);
-      setSelectionData(null);
+    if (selectionData && onAskCustom) {
+      onAskCustom(selectionData);
+      clearSelection();
     }
   };
 
@@ -145,9 +155,13 @@ export function SelectionToolbar({ onAskLLM, containerRef }) {
         left: position.left,
       }}
     >
-      <button className="selection-toolbar-btn" onClick={handleAskClick}>
-        <span className="material-symbols-outlined">psychology</span>
-        <span>Ask LLM</span>
+      <button className="selection-toolbar-btn" onClick={handleElaborateClick} title="Explain this in more detail">
+        <span className="material-symbols-outlined">auto_awesome</span>
+        <span>Elaborate</span>
+      </button>
+      <button className="selection-toolbar-btn secondary" onClick={handleAskClick} title="Ask a custom question">
+        <span className="material-symbols-outlined">chat</span>
+        <span>Ask</span>
       </button>
     </div>
   );
