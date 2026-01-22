@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar/Sidebar';
 import { MainContent } from './components/Main/MainContent';
 import { MetadataExplorerPage } from './components/MetadataExplorer';
 import { AnalysisPage } from './components/Analysis';
+import { NetworkGraphPage } from './components/NetworkGraph';
 import { PromptModal } from './components/Modals/PromptModal';
 import { DeleteModal } from './components/Modals/DeleteModal';
 import { AskQuestionModal } from './components/Modals/AskQuestionModal';
@@ -31,6 +32,7 @@ function AppContent() {
         {currentPage === 'main' && <MainPage />}
         {currentPage === 'explorer' && <MetadataExplorerPage />}
         {currentPage === 'analysis' && <AnalysisPage />}
+        {currentPage === 'graph' && <NetworkGraphPage />}
       </div>
     </div>
   );

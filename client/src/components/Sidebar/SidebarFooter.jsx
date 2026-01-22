@@ -1,11 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { useTheme } from '../../hooks/useTheme';
 import { useApp } from '../../context/AppContext';
 import { useMetadataStreamliner } from '../../hooks/useMetadataStreamliner';
 import { LLM_MODELS } from '../../utils/config';
 
 export function SidebarFooter() {
-  const { isDark, toggleTheme } = useTheme();
   const { state, actions } = useApp();
   const { openModal } = useMetadataStreamliner();
   const [showLLMPopup, setShowLLMPopup] = useState(false);
@@ -167,13 +165,11 @@ export function SidebarFooter() {
       </button>
       <button
         className="sidebar-footer-btn"
-        id="theme-toggle-btn"
-        title="Toggle light/dark mode"
-        onClick={toggleTheme}
+        id="settings-btn"
+        title="Settings"
+        onClick={() => actions.setPromptModalOpen(true)}
       >
-        <span className="material-symbols-outlined">
-          {isDark ? 'light_mode' : 'dark_mode'}
-        </span>
+        <span className="material-symbols-outlined">settings</span>
       </button>
     </div>
   );

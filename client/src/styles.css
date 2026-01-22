@@ -6267,7 +6267,9 @@ html.light .response-content {
   border: none;
   cursor: pointer;
   border-radius: 6px;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
   flex-shrink: 0;
 }
 
@@ -6341,7 +6343,6 @@ html.light .response-content {
   font-size: 14px;
   color: var(--text-muted);
 }
-
 
 /* Light mode analysis page */
 html.light .analysis-main {
@@ -6433,4 +6434,389 @@ html.light .saved-analysis-item:hover .analysis-item-title {
 html.light .selection-hint {
   background: #f8f9fa;
   border-color: var(--border);
+}
+
+/* ========================================
+   Network Graph Page
+   ======================================== */
+.network-graph-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--background-dark);
+}
+
+.graph-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--surface-darker);
+  border-bottom: 1px solid var(--border-dark);
+  flex-shrink: 0;
+}
+
+.graph-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.graph-header .back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.graph-header .back-btn:hover {
+  background: var(--surface-dark);
+  color: var(--text-main);
+}
+
+.graph-title h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.graph-stats {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-left: 12px;
+}
+
+.graph-stats .truncated {
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+/* Graph Controls */
+.graph-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.graph-controls .control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.graph-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.graph-controls .control-label {
+  color: var(--text-muted);
+}
+
+.graph-controls select {
+  padding: 6px 10px;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  color: var(--text-main);
+  font-size: 13px;
+  font-family: var(--font-display);
+  cursor: pointer;
+}
+
+.graph-controls select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.control-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.control-btn:hover:not(:disabled) {
+  background: var(--border-dark);
+  color: var(--text-main);
+}
+
+.control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.control-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.control-btn.clear-focus {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.control-btn.clear-focus:hover {
+  background: var(--primary-hover);
+}
+
+/* Graph Container */
+.graph-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  width: 100%;
+}
+
+.graph-container > div:not(.node-tooltip):not(.graph-zoom-controls) {
+  width: 100%;
+  height: 100%;
+}
+
+/* Zoom Controls */
+.graph-zoom-controls {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 50;
+}
+
+.graph-zoom-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.graph-zoom-controls button:hover {
+  background: var(--border-dark);
+  color: var(--text-main);
+}
+
+.graph-zoom-controls button .material-symbols-outlined {
+  font-size: 20px;
+}
+
+html.light .graph-zoom-controls button {
+  background: #fff;
+  border-color: var(--border);
+}
+
+html.light .graph-zoom-controls button:hover {
+  background: #f0f0f0;
+}
+
+/* Node Tooltip - fixed to viewport */
+.node-tooltip {
+  position: fixed;
+  top: 160px;
+  right: 20px;
+  bottom: auto;
+  left: auto;
+  width: fit-content;
+  height: fit-content;
+  background: var(--surface-dark);
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-width: 280px;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tooltip-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+
+.tooltip-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tooltip-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.tooltip-category .category-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.tooltip-stat {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.tooltip-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+  padding-top: 6px;
+  border-top: 1px solid var(--border-dark);
+}
+
+/* Graph Legend */
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface-darker);
+  border-top: 1px solid var(--border-dark);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.legend-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+/* Graph States */
+.graph-loading,
+.graph-error,
+.graph-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px;
+  text-align: center;
+}
+
+.graph-loading .spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-dark);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.graph-error .material-symbols-outlined,
+.graph-empty .material-symbols-outlined {
+  font-size: 48px;
+  color: var(--text-dim);
+}
+
+.graph-error p,
+.graph-empty p {
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 300px;
+}
+
+.graph-empty .hint {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.graph-error button {
+  padding: 8px 16px;
+  background: var(--primary);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  font-family: var(--font-display);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.graph-error button:hover {
+  background: var(--primary-hover);
+}
+
+/* Light mode */
+html.light .network-graph-page {
+  background: #f8f9fa;
+}
+
+html.light .graph-header {
+  background: #fff;
+  border-bottom-color: var(--border);
+}
+
+html.light .graph-controls select {
+  background: #fff;
+  border-color: var(--border);
+}
+
+html.light .control-btn {
+  background: #fff;
+  border-color: var(--border);
+}
+
+html.light .node-tooltip {
+  background: #fff;
+  border-color: var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+html.light .graph-legend {
+  background: #fff;
+  border-top-color: var(--border);
 }

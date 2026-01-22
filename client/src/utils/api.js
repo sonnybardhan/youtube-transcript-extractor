@@ -136,6 +136,26 @@ export async function fetchRelatedVideos(filename, limit = 5) {
   return res.json();
 }
 
+/**
+ * Fetch graph data for network visualization
+ * @param {Object} options - Query options
+ * @param {string} options.center - Optional filename to center the graph on
+ * @param {number} options.limit - Maximum number of nodes (default: 100)
+ * @param {number} options.minScore - Minimum connection score (default: 2)
+ */
+export async function fetchGraphData(options = {}) {
+  const params = new URLSearchParams();
+  if (options.center) params.set('center', options.center);
+  if (options.limit) params.set('limit', options.limit.toString());
+  if (options.minScore) params.set('minScore', options.minScore.toString());
+
+  const queryString = params.toString();
+  const url = `/api/metadata/graph${queryString ? `?${queryString}` : ''}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to load graph data');
+  return res.json();
+}
+
 export async function applyMetadataChanges(proposedChanges) {
   const res = await fetch('/api/metadata/apply', {
     method: 'POST',

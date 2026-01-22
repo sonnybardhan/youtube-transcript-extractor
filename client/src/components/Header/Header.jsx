@@ -1,8 +1,10 @@
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../hooks/useTheme';
 
 export function Header() {
   const { state, actions } = useApp();
   const { selectedItems, currentPage } = state;
+  const { isDark, toggleTheme } = useTheme();
 
   const handleLogoClick = () => {
     actions.clearCurrent();
@@ -20,8 +22,8 @@ export function Header() {
     actions.setCurrentPage('analysis');
   };
 
-  const handleSettingsClick = () => {
-    actions.setPromptModalOpen(true);
+  const handleNetworkClick = () => {
+    actions.setCurrentPage('graph');
   };
 
   const selectedCount = selectedItems.size;
@@ -48,8 +50,16 @@ export function Header() {
           <span className="header-action-label">Analyze</span>
           {selectedCount >= 2 && <span className="header-badge">{selectedCount}</span>}
         </button>
-        <button className="header-action icon-only" onClick={handleSettingsClick} title="Settings">
-          <span className="material-symbols-outlined">settings</span>
+        <button
+          className={`header-action ${currentPage === 'graph' ? 'active' : ''}`}
+          onClick={handleNetworkClick}
+          title="View network graph of connected documents"
+        >
+          <span className="material-symbols-outlined">hub</span>
+          <span className="header-action-label">Network</span>
+        </button>
+        <button className="header-action icon-only" onClick={toggleTheme} title="Toggle light/dark mode">
+          <span className="material-symbols-outlined">{isDark ? 'light_mode' : 'dark_mode'}</span>
         </button>
       </div>
     </header>

@@ -30,6 +30,7 @@ import {
   getMetadataIndex,
   findRelatedVideos,
   analyzeMultipleSummaries,
+  buildGraphData,
   ANALYSIS_PROMPTS,
 } from "./lib/extractor.js";
 
@@ -1118,6 +1119,20 @@ app.post("/api/metadata/index/rebuild", (_req, res) => {
   try {
     const index = buildMetadataIndex();
     res.json({ success: true, index });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get graph data for network visualization
+app.get("/api/metadata/graph", (req, res) => {
+  const center = req.query.center || null;
+  const limit = parseInt(req.query.limit) || 100;
+  const minScore = parseInt(req.query.minScore) || 2;
+
+  try {
+    const graphData = buildGraphData({ center, limit, minScore });
+    res.json(graphData);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
