@@ -1,4 +1,6 @@
+import "dotenv/config";
 import express from "express";
+import dayjs from "dayjs";
 import {
   readFileSync,
   readdirSync,
@@ -35,17 +37,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3001;
 const PROMPT_FILE = join(getPromptsDir(), "custom-prompt.txt");
-
-// Load .env file if present
-const envPath = join(__dirname, ".env");
-if (existsSync(envPath)) {
-  readFileSync(envPath, "utf-8")
-    .split("\n")
-    .forEach((line) => {
-      const [key, ...vals] = line.split("=");
-      if (key && vals.length) process.env[key.trim()] = vals.join("=").trim();
-    });
-}
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(join(__dirname, "client", "dist")));
@@ -236,10 +227,7 @@ app.post("/api/extract/process/stream", async (req, res) => {
   const tempDir = getTempDir();
   let filename;
   if (isRerun) {
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .slice(0, 19);
+    const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
     filename = `${sanitizeFilename(title)} (${timestamp}).md`;
   } else {
     filename = `${sanitizeFilename(title)}.md`;
@@ -411,10 +399,7 @@ app.post("/api/reprocess/stream", async (req, res) => {
     const promptUsed = llmResult.promptUsed;
 
     // Create new filename with timestamp
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .slice(0, 19);
+    const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
     const baseTitle = title.replace(/ \(\d{4}-\d{2}-\d{2}T.*\)$/, "");
     const newFilename = `${sanitizeFilename(baseTitle)} (${timestamp}).md`;
 
@@ -545,10 +530,7 @@ app.post("/api/reprocess", async (req, res) => {
     const promptUsed = llmResult?.promptUsed;
 
     // Create new filename with timestamp
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .slice(0, 19);
+    const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
     const baseTitle = title.replace(/ \(\d{4}-\d{2}-\d{2}T.*\)$/, ""); // Remove old timestamp if present
     const newFilename = `${sanitizeFilename(baseTitle)} (${timestamp}).md`;
 
@@ -1301,7 +1283,7 @@ app.post("/api/summaries/analyze/save", (req, res) => {
   }
 
   const tempDir = getTempDir();
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const timestamp = dayjs().format("YYYY-MM-DD_HH-mm-ss");
   const baseTitle = title || "Cross-Reference Analysis";
   const filename = `Analysis_${sanitizeFilename(baseTitle)} (${timestamp}).md`;
   const filePath = join(tempDir, filename);

@@ -1,169 +1,190 @@
 /**
- * Streaming parsing utilities
+ * Streaming parsing utilities using partial-json library
  */
+import { parse as parsePartialJsonLib } from "partial-json";
 
 /**
  * Parse partial JSON to extract completed sections
+ * Uses partial-json library to handle incomplete JSON gracefully
  * @param {string} text - The accumulated text from streaming
  * @returns {object} - Object with extracted sections
  */
 export function parsePartialJSON(text) {
   const sections = {};
 
-  // Try to extract TLDR if complete
-  const tldrMatch = text.match(/"tldr"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  if (tldrMatch) {
-    sections.tldr = unescapeJsonString(tldrMatch[1]);
+  // Extract JSON object from text (handle markdown code blocks)
+  let jsonText = text;
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/);
+  if (codeBlockMatch) {
+    jsonText = codeBlockMatch[1];
   }
 
-  // Try to extract keyInsights array - complete or partial
-  const insightsCompleteMatch = text.match(/"keyInsights"\s*:\s*\[([\s\S]*?)\]/);
-  if (insightsCompleteMatch) {
-    try {
-      const insightsArray = JSON.parse('[' + insightsCompleteMatch[1] + ']');
-      if (Array.isArray(insightsArray) && insightsArray.length > 0) {
-        sections.keyInsights = insightsArray;
-      }
-    } catch {
-      const partialInsights = extractPartialArray(insightsCompleteMatch[1]);
-      if (partialInsights.length > 0) {
-        sections.keyInsights = partialInsights;
-        sections.keyInsightsPartial = true;
-      }
-    }
-  } else {
-    const insightsPartialMatch = text.match(/"keyInsights"\s*:\s*\[([\s\S]*)/);
-    if (insightsPartialMatch) {
-      const partialInsights = extractPartialArray(insightsPartialMatch[1]);
-      if (partialInsights.length > 0) {
-        sections.keyInsights = partialInsights;
-        sections.keyInsightsPartial = true;
-      }
-    }
-  }
+  // Find the JSON object boundaries
+  const startIdx = jsonText.indexOf("{");
+  if (startIdx === -1) return sections;
 
-  // Try to extract actionItems array - complete or partial
-  const actionsCompleteMatch = text.match(/"actionItems"\s*:\s*\[([\s\S]*?)\]/);
-  if (actionsCompleteMatch) {
-    try {
-      const actionsArray = JSON.parse('[' + actionsCompleteMatch[1] + ']');
-      if (Array.isArray(actionsArray) && actionsArray.length > 0) {
-        sections.actionItems = actionsArray;
-      }
-    } catch {
-      const partialActions = extractPartialArray(actionsCompleteMatch[1]);
-      if (partialActions.length > 0) {
-        sections.actionItems = partialActions;
-        sections.actionItemsPartial = true;
-      }
-    }
-  } else {
-    const actionsPartialMatch = text.match(/"actionItems"\s*:\s*\[([\s\S]*)/);
-    if (actionsPartialMatch) {
-      const partialActions = extractPartialArray(actionsPartialMatch[1]);
-      if (partialActions.length > 0) {
-        sections.actionItems = partialActions;
-        sections.actionItemsPartial = true;
-      }
-    }
-  }
+  jsonText = jsonText.slice(startIdx);
 
-  // Try to extract concepts array
-  const conceptsMatch = text.match(/"concepts"\s*:\s*\[([\s\S]*?)\]/);
-  if (conceptsMatch) {
-    try {
-      const conceptsArray = JSON.parse('[' + conceptsMatch[1] + ']');
-      if (Array.isArray(conceptsArray) && conceptsArray.length > 0) {
-        sections.concepts = conceptsArray;
-      }
-    } catch {
-      const partialConcepts = extractPartialArray(conceptsMatch[1]);
-      if (partialConcepts.length > 0) {
-        sections.concepts = partialConcepts;
-        sections.conceptsPartial = true;
+  try {
+    // Parse with partial-json - it handles incomplete JSON
+    const parsed = parsePartialJsonLib(jsonText);
+
+    if (!parsed || typeof parsed !== "object") return sections;
+
+    // Extract completed fields
+    if (parsed.tldr && typeof parsed.tldr === "string") {
+      sections.tldr = parsed.tldr;
+    }
+
+    if (parsed.keyInsights && Array.isArray(parsed.keyInsights)) {
+      const completed = parsed.keyInsights.filter((item) => typeof item === "string");
+      if (completed.length > 0) {
+        sections.keyInsights = completed;
+        // Mark as partial if there might be more items coming
+        if (!isArrayComplete(jsonText, "keyInsights")) {
+          sections.keyInsightsPartial = true;
+        }
       }
     }
-  }
 
-  // Try to extract entities array
-  const entitiesMatch = text.match(/"entities"\s*:\s*\[([\s\S]*?)\]/);
-  if (entitiesMatch) {
-    try {
-      const entitiesArray = JSON.parse('[' + entitiesMatch[1] + ']');
-      if (Array.isArray(entitiesArray) && entitiesArray.length > 0) {
-        sections.entities = entitiesArray;
-      }
-    } catch {
-      const partialEntities = extractPartialArray(entitiesMatch[1]);
-      if (partialEntities.length > 0) {
-        sections.entities = partialEntities;
-        sections.entitiesPartial = true;
+    if (parsed.actionItems && Array.isArray(parsed.actionItems)) {
+      const completed = parsed.actionItems.filter((item) => typeof item === "string");
+      if (completed.length > 0) {
+        sections.actionItems = completed;
+        if (!isArrayComplete(jsonText, "actionItems")) {
+          sections.actionItemsPartial = true;
+        }
       }
     }
-  }
 
-  // Try to extract category (single string)
-  const categoryMatch = text.match(/"category"\s*:\s*"([^"]+)"/);
-  if (categoryMatch) {
-    sections.category = categoryMatch[1];
-  }
-
-  // Try to extract suggestedTags array
-  const tagsMatch = text.match(/"suggestedTags"\s*:\s*\[([\s\S]*?)\]/);
-  if (tagsMatch) {
-    try {
-      const tagsArray = JSON.parse('[' + tagsMatch[1] + ']');
-      if (Array.isArray(tagsArray) && tagsArray.length > 0) {
-        sections.suggestedTags = tagsArray;
-      }
-    } catch {
-      const partialTags = extractPartialArray(tagsMatch[1]);
-      if (partialTags.length > 0) {
-        sections.suggestedTags = partialTags;
-        sections.suggestedTagsPartial = true;
+    if (parsed.concepts && Array.isArray(parsed.concepts)) {
+      const completed = parsed.concepts.filter((item) => typeof item === "string");
+      if (completed.length > 0) {
+        sections.concepts = completed;
+        if (!isArrayComplete(jsonText, "concepts")) {
+          sections.conceptsPartial = true;
+        }
       }
     }
-  }
 
-  // Try to extract summary (or transcript for backwards compatibility)
-  const summaryMatch = text.match(/"(?:summary|transcript)"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-  if (summaryMatch) {
-    sections.summary = unescapeJsonString(summaryMatch[1]);
-  } else {
-    const summaryStartMatch = text.match(/"(?:summary|transcript)"\s*:\s*"((?:[^"\\]|\\.)*)/);
-    if (summaryStartMatch) {
-      sections.summaryPartial = unescapeJsonString(summaryStartMatch[1]);
+    if (parsed.entities && Array.isArray(parsed.entities)) {
+      const completed = parsed.entities.filter((item) => typeof item === "string");
+      if (completed.length > 0) {
+        sections.entities = completed;
+        if (!isArrayComplete(jsonText, "entities")) {
+          sections.entitiesPartial = true;
+        }
+      }
     }
+
+    if (parsed.category && typeof parsed.category === "string") {
+      sections.category = parsed.category;
+    }
+
+    if (parsed.suggestedTags && Array.isArray(parsed.suggestedTags)) {
+      const completed = parsed.suggestedTags.filter((item) => typeof item === "string");
+      if (completed.length > 0) {
+        sections.suggestedTags = completed;
+        if (!isArrayComplete(jsonText, "suggestedTags")) {
+          sections.suggestedTagsPartial = true;
+        }
+      }
+    }
+
+    // Handle summary (or transcript for backwards compatibility)
+    const summaryValue = parsed.summary || parsed.transcript;
+    if (summaryValue && typeof summaryValue === "string") {
+      // Check if summary is complete (string is closed)
+      if (isStringComplete(jsonText, "summary") || isStringComplete(jsonText, "transcript")) {
+        sections.summary = summaryValue;
+      } else {
+        sections.summaryPartial = summaryValue;
+      }
+    }
+  } catch {
+    // If partial-json fails, return empty sections
+    // This can happen with severely malformed JSON
+    return sections;
   }
 
   return sections;
 }
 
 /**
- * Extract complete string items from a partial array
+ * Check if an array field appears to be complete (has closing bracket)
  */
-function extractPartialArray(arrayContent) {
-  const items = [];
-  const regex = /"((?:[^"\\]|\\.)*)"/g;
-  let match;
+function isArrayComplete(text, fieldName) {
+  // Find the field and check if its array is closed
+  const fieldPattern = new RegExp(`"${fieldName}"\\s*:\\s*\\[`, "g");
+  const match = fieldPattern.exec(text);
+  if (!match) return false;
 
-  while ((match = regex.exec(arrayContent)) !== null) {
-    items.push(unescapeJsonString(match[1]));
+  // Count brackets from the array start
+  let depth = 1;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = match.index + match[0].length; i < text.length; i++) {
+    const char = text[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"' && !escaped) {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === "[") depth++;
+      if (char === "]") {
+        depth--;
+        if (depth === 0) return true;
+      }
+    }
   }
 
-  return items;
+  return false;
 }
 
 /**
- * Unescape JSON string escape sequences
+ * Check if a string field appears to be complete (has closing quote)
  */
-function unescapeJsonString(str) {
-  return str
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\r')
-    .replace(/\\t/g, '\t')
-    .replace(/\\"/g, '"')
-    .replace(/\\\\/g, '\\');
+function isStringComplete(text, fieldName) {
+  // Find the field and check if its string is closed
+  const fieldPattern = new RegExp(`"${fieldName}"\\s*:\\s*"`, "g");
+  const match = fieldPattern.exec(text);
+  if (!match) return false;
+
+  // Scan for the closing quote
+  let escaped = false;
+
+  for (let i = match.index + match[0].length; i < text.length; i++) {
+    const char = text[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
