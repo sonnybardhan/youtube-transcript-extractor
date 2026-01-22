@@ -153,7 +153,7 @@ export function SidebarFooter() {
         title="Explore Metadata"
         onClick={handleExploreClick}
       >
-        <span className="material-symbols-outlined">hub</span>
+        <span className="material-symbols-outlined">travel_explore</span>
       </button>
       <button
         className="sidebar-footer-btn"

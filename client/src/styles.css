@@ -4771,6 +4771,30 @@ html.light .preview-chip.category-chip {
   color: #fff;
 }
 
+.section-clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.section-clear-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error);
+}
+
+.section-clear-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
 .expand-icon {
   font-size: 20px;
   color: var(--text-dim);

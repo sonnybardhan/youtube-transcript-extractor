@@ -1,8 +1,13 @@
 import { useState, useMemo } from 'react';
 
-export function MetadataSection({ title, icon, terms, type, selectedTerms, onToggle, isSelected, hasActiveFilter }) {
+export function MetadataSection({ title, icon, terms, type, selectedTerms, onToggle, isSelected, hasActiveFilter, onClearCategory }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const selectedCount = selectedTerms?.length || 0;
+
+  const handleClearClick = (e) => {
+    e.stopPropagation();
+    onClearCategory?.(type);
+  };
 
   // Filter out unavailable terms, but always keep selected ones visible
   const visibleTerms = useMemo(() => {
@@ -27,7 +32,16 @@ export function MetadataSection({ title, icon, terms, type, selectedTerms, onTog
         </div>
         <div className="section-header-right">
           {selectedCount > 0 && (
-            <span className="selected-badge">{selectedCount}</span>
+            <>
+              <span className="selected-badge">{selectedCount}</span>
+              <button
+                className="section-clear-btn"
+                onClick={handleClearClick}
+                title={`Clear ${title.toLowerCase()} filter`}
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </>
           )}
           <span className="material-symbols-outlined expand-icon">
             {isExpanded ? 'expand_less' : 'expand_more'}

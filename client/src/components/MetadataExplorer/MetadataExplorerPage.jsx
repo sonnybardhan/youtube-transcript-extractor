@@ -22,6 +22,7 @@ export function MetadataExplorerPage() {
     toggleTerm,
     isTermSelected,
     clearAllSelections,
+    clearCategory,
     toggleFilterMode,
     navigateToFile,
   } = useMetadataExplorer();
@@ -154,6 +155,7 @@ export function MetadataExplorerPage() {
                 onToggle={toggleTerm}
                 isSelected={isTermSelected}
                 hasActiveFilter={selectedTermCount > 0}
+                onClearCategory={clearCategory}
               />
               <MetadataSection
                 title="Entities"
@@ -164,6 +166,7 @@ export function MetadataExplorerPage() {
                 onToggle={toggleTerm}
                 isSelected={isTermSelected}
                 hasActiveFilter={selectedTermCount > 0}
+                onClearCategory={clearCategory}
               />
               <MetadataSection
                 title="Tags"
@@ -174,6 +177,7 @@ export function MetadataExplorerPage() {
                 onToggle={toggleTerm}
                 isSelected={isTermSelected}
                 hasActiveFilter={selectedTermCount > 0}
+                onClearCategory={clearCategory}
               />
               <MetadataSection
                 title="Categories"
@@ -184,6 +188,7 @@ export function MetadataExplorerPage() {
                 onToggle={toggleTerm}
                 isSelected={isTermSelected}
                 hasActiveFilter={selectedTermCount > 0}
+                onClearCategory={clearCategory}
               />
             </div>
 

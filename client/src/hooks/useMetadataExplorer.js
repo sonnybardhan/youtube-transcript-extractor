@@ -71,6 +71,14 @@ export function useMetadataExplorer() {
     actions.resetExplorer();
   }, [actions]);
 
+  // Clear a single category
+  const clearCategory = useCallback((type) => {
+    actions.setExplorerSelectedTerms({
+      ...explorerSelectedTerms,
+      [type]: [],
+    });
+  }, [explorerSelectedTerms, actions]);
+
   // Toggle filter mode
   const toggleFilterMode = useCallback(() => {
     actions.setExplorerFilterMode(explorerFilterMode === 'AND' ? 'OR' : 'AND');
@@ -265,6 +273,7 @@ export function useMetadataExplorer() {
     toggleTerm,
     isTermSelected,
     clearAllSelections,
+    clearCategory,
     toggleFilterMode,
     navigateToFile,
   };
