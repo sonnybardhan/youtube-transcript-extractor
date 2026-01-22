@@ -774,7 +774,6 @@ html.light .header-action {
 }
 
 .sidebar-footer-btn.llm-btn {
-  flex: 1;
   justify-content: flex-start;
   background: var(--surface-dark);
   border: 1px solid rgba(128, 128, 128, 0.15);
@@ -804,7 +803,7 @@ html.light .header-action {
   position: absolute;
   bottom: 100%;
   left: 12px;
-  right: 12px;
+  width: 276px;
   margin-bottom: 8px;
   background: var(--surface-dark);
   border: 1px solid rgba(128, 128, 128, 0.15);
@@ -1278,6 +1277,7 @@ html.light .header-action {
   display: flex;
   height: calc(100% - 65px);
   overflow: hidden;
+  position: relative;
 }
 
 .results-main {
@@ -1285,6 +1285,8 @@ html.light .header-action {
   overflow-y: auto;
   min-width: 0;
   position: relative;
+  /* Main content always takes full width - info pane overlays */
+  width: 100%;
 }
 
 /* Results-specific loading overlay (only covers main area) */
@@ -1315,15 +1317,20 @@ html.light .header-action {
   padding: 40px 24px 80px;
 }
 
-/* Info Pane (Right Panel) */
+/* Info Pane (Right Panel) - Overlays main content */
 .info-pane {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
   width: 600px;
   border-left: 1px solid var(--border-dark);
   display: flex;
   flex-direction: column;
   background: var(--surface-darker);
-  flex-shrink: 0;
   transition: width 0.2s ease;
+  z-index: 10;
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.3);
 }
 
 .info-pane-header {
@@ -1452,6 +1459,7 @@ html.light .header-action {
 /* Collapsed state */
 .info-pane.collapsed {
   width: 48px;
+  box-shadow: none;
 }
 
 .info-pane.collapsed .info-pane-header {
@@ -3296,6 +3304,7 @@ html.light .collapsible-section-content {
 html.light .info-pane {
   background: var(--surface-darker);
   border-left-color: var(--border-dark);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.1);
 }
 
 html.light .info-pane-header {
