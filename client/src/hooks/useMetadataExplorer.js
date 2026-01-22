@@ -104,6 +104,7 @@ export function useMetadataExplorer() {
   }, [metadataIndex]);
 
   // Calculate matching files based on selected terms and filter mode
+  // (moved up so cascadedTerms can reference it)
   const matchingFiles = useMemo(() => {
     if (!metadataIndex) return [];
 
@@ -168,6 +169,42 @@ export function useMetadataExplorer() {
       .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
   }, [metadataIndex, explorerSelectedTerms, explorerFilterMode, history]);
 
+  // Cascaded terms: filter available terms based on current selection
+  const cascadedTerms = useMemo(() => {
+    const { concepts, entities, tags, categories } = explorerSelectedTerms;
+    const hasSelections =
+      concepts.length > 0 ||
+      entities.length > 0 ||
+      tags.length > 0 ||
+      categories.length > 0;
+
+    // No filtering needed if nothing is selected
+    if (!hasSelections) return indexedTerms;
+
+    const matchingFileSet = new Set(matchingFiles.map((f) => f.filename));
+
+    const filterTermsForType = (terms, type) =>
+      terms.map((t) => {
+        const filteredCount = t.files.filter((f) => matchingFileSet.has(f)).length;
+        // A term is available if it appears in any matching file,
+        // OR if it's currently selected (so user can deselect it)
+        const isSelected = explorerSelectedTerms[type]?.includes(t.term);
+        return {
+          ...t,
+          filteredCount,
+          available: filteredCount > 0 || isSelected,
+          isSelected,
+        };
+      });
+
+    return {
+      concepts: filterTermsForType(indexedTerms.concepts, 'concepts'),
+      entities: filterTermsForType(indexedTerms.entities, 'entities'),
+      tags: filterTermsForType(indexedTerms.tags, 'tags'),
+      categories: filterTermsForType(indexedTerms.categories, 'categories'),
+    };
+  }, [indexedTerms, matchingFiles, explorerSelectedTerms]);
+
   // Get the count of selected terms
   const selectedTermCount = useMemo(() => {
     const { concepts, entities, tags, categories } = explorerSelectedTerms;
@@ -213,6 +250,7 @@ export function useMetadataExplorer() {
     // State
     metadataIndex,
     indexedTerms,
+    cascadedTerms,
     selectedTerms: explorerSelectedTerms,
     filterMode: explorerFilterMode,
     matchingFiles,

@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
-export function MetadataSection({ title, icon, terms, type, selectedTerms, onToggle, isSelected }) {
+export function MetadataSection({ title, icon, terms, type, selectedTerms, onToggle, isSelected, hasActiveFilter }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const selectedCount = selectedTerms?.length || 0;
 
-  if (terms.length === 0) {
+  // Filter out unavailable terms, but always keep selected ones visible
+  const visibleTerms = useMemo(() => {
+    if (!hasActiveFilter) return terms;
+    return terms.filter((t) => t.available !== false);
+  }, [terms, hasActiveFilter]);
+
+  if (visibleTerms.length === 0) {
     return null;
   }
 
@@ -17,7 +23,7 @@ export function MetadataSection({ title, icon, terms, type, selectedTerms, onTog
         <div className="section-header-left">
           <span className="material-symbols-outlined section-icon">{icon}</span>
           <span className="section-title">{title}</span>
-          <span className="section-count">({terms.length})</span>
+          <span className="section-count">({visibleTerms.length})</span>
         </div>
         <div className="section-header-right">
           {selectedCount > 0 && (
@@ -31,8 +37,12 @@ export function MetadataSection({ title, icon, terms, type, selectedTerms, onTog
 
       {isExpanded && (
         <div className="section-content">
-          {terms.map((termData) => {
+          {visibleTerms.map((termData) => {
             const checked = isSelected(type, termData.term);
+            // Show filtered count when filter is active, otherwise original count
+            const displayCount = hasActiveFilter && termData.filteredCount !== undefined
+              ? termData.filteredCount
+              : termData.count;
             return (
               <label
                 key={termData.term}
@@ -44,7 +54,7 @@ export function MetadataSection({ title, icon, terms, type, selectedTerms, onTog
                   onChange={() => onToggle(type, termData.term)}
                 />
                 <span className="term-name">{termData.term}</span>
-                <span className="term-count">{termData.count}</span>
+                <span className="term-count">{displayCount}</span>
               </label>
             );
           })}

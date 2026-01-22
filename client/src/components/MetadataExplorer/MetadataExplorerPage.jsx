@@ -9,6 +9,7 @@ export function MetadataExplorerPage() {
   const {
     metadataIndex,
     indexedTerms,
+    cascadedTerms,
     selectedTerms,
     filterMode,
     matchingFiles,
@@ -147,38 +148,42 @@ export function MetadataExplorerPage() {
               <MetadataSection
                 title="Concepts"
                 icon="lightbulb"
-                terms={filterTerms(indexedTerms.concepts)}
+                terms={filterTerms(cascadedTerms.concepts)}
                 type="concepts"
                 selectedTerms={selectedTerms.concepts}
                 onToggle={toggleTerm}
                 isSelected={isTermSelected}
+                hasActiveFilter={selectedTermCount > 0}
               />
               <MetadataSection
                 title="Entities"
                 icon="person"
-                terms={filterTerms(indexedTerms.entities)}
+                terms={filterTerms(cascadedTerms.entities)}
                 type="entities"
                 selectedTerms={selectedTerms.entities}
                 onToggle={toggleTerm}
                 isSelected={isTermSelected}
+                hasActiveFilter={selectedTermCount > 0}
               />
               <MetadataSection
                 title="Tags"
                 icon="sell"
-                terms={filterTerms(indexedTerms.tags)}
+                terms={filterTerms(cascadedTerms.tags)}
                 type="tags"
                 selectedTerms={selectedTerms.tags}
                 onToggle={toggleTerm}
                 isSelected={isTermSelected}
+                hasActiveFilter={selectedTermCount > 0}
               />
               <MetadataSection
                 title="Categories"
                 icon="category"
-                terms={filterTerms(indexedTerms.categories)}
+                terms={filterTerms(cascadedTerms.categories)}
                 type="categories"
                 selectedTerms={selectedTerms.categories}
                 onToggle={toggleTerm}
                 isSelected={isTermSelected}
+                hasActiveFilter={selectedTermCount > 0}
               />
             </div>
 
